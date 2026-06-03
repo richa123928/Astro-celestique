@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import usePayment from '../hooks/usePayment';
 import { useCurrency } from '../context/CurrencyContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -16,6 +17,7 @@ const SUGGESTED_QUESTIONS = [
 
 export default function AIChat() {
   const { user, isAuthenticated } = useAuth();
+  const { initiatePayment, loading: paymentLoading } = usePayment();
   const { convert, currency }     = useCurrency();
   const navigate                  = useNavigate();
   const [messages,   setMessages]   = useState([
@@ -86,15 +88,19 @@ export default function AIChat() {
 
   const addFunds = async () => {
     try {
-      const { data } = await axios.post('/api/chat/add-funds', { amount: fundAmount });
-      toast.success(`${convert(fundAmount)} added to wallet!`);
-      setWalletBalance(data.walletBalance);
-      setShowFunds(false);
+      await initiatePayment({
+        amount:      fundAmount,
+        purpose:     'wallet',
+        description: `Add ₹${fundAmount} to Astro Celestique Wallet`,
+        onSuccess:   (data) => {
+          setWalletBalance(data.walletBalance);
+          setShowFunds(false);
+        }
+      });
     } catch (err) {
-      toast.error('Failed to add funds');
+      toast.error('Payment failed. Please try again.');
     }
   };
-
   return (
     <div style={{
       minHeight: '100vh',

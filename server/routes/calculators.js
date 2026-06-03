@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { runCalculator } = require('../controllers/calculatorController');
 
-router.get('/', (req, res) => {
-  res.json({ success: true, message: 'Calculators route working' });
-});
+router.post('/:type', runCalculator);
 
 module.exports = router;

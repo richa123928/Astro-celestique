@@ -40,6 +40,8 @@ app.use('/api/puja',        require('./routes/puja'));
 app.use('/api/remedies',    require('./routes/remedies'));
 app.use('/api/chat',        require('./routes/chat'));
 app.use('/api/payments',    require('./routes/payments'));
+app.use('/api/admin',       require('./routes/admin'));
+app.use('/api/panchang',    require('./routes/panchang'));
 
 
 // Health check

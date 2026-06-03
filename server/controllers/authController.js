@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { sendWelcomeEmail } = require('../utils/sendEmail');
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -25,6 +26,8 @@ exports.register = async (req, res) => {
     await user.save();
 
     const token = user.getSignedJwtToken();
+    // Send welcome email
+    sendWelcomeEmail(user).catch(err => console.log('Welcome email error:', err.message));
 
     res.status(201).json({
       success: true,

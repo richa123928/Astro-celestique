@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CountUp from 'react-countup';
 import { useInView } from 'react-intersection-observer';
 import { useCurrency } from '../context/CurrencyContext';
+import axios from 'axios';
 
 // ── Data ────────────────────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ function StatsSection() {
   );
 }
 
-function CosmicMandala() {
+function CosmicMandala({ panchang }) {
   return (
     <div className="mandala-wrap">
       <div className="mandala-outer">
@@ -94,16 +95,24 @@ function CosmicMandala() {
       </div>
       <div className="mandala-info">
         <span className="section-label">LIVE COSMIC ENGINE</span>
-        <p className="mandala-panchang serif">Today's Panchang · Krishna Paksha · Dwitiya</p>
+        <p className="mandala-panchang serif">
+          {panchang
+            ? `Today's Panchang · ${panchang.paksha} · ${panchang.tithi}`
+            : "Today's Panchang · Loading..."}
+        </p>
       </div>
       <div className="mandala-planets">
         <div>
-          <span className="mandala-deg">7°23'</span>
-          <span className="mandala-planet">SUN · VRISHCHIKA</span>
+          <span className="mandala-deg">
+            {panchang?.planets?.find(p => p.name === 'Sun')?.position || 'Taurus'}
+          </span>
+          <span className="mandala-planet">SUN</span>
         </div>
         <div>
-          <span className="mandala-deg">12°41'</span>
-          <span className="mandala-planet">MOON · MESHA</span>
+          <span className="mandala-deg">
+            {panchang?.planets?.find(p => p.name === 'Moon')?.position || 'Cancer'}
+          </span>
+          <span className="mandala-planet">MOON</span>
         </div>
       </div>
     </div>
@@ -113,9 +122,23 @@ function CosmicMandala() {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { convert }            = useCurrency();
-  const navigate               = useNavigate();
-  const [activeFilter, setActiveFilter] = useState('ALL');
+  const { convert }                         = useCurrency();
+  const navigate                            = useNavigate();
+  const [activeFilter, setActiveFilter]     = useState('ALL');
+  const [cosmicBrief,  setCosmicBrief]      = useState(null);
+
+  useEffect(() => {
+    const fetchCosmicBrief = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await axios.post('/api/panchang/daily', { date: today });
+        setCosmicBrief(data);
+      } catch (err) {
+        console.log('Cosmic brief error:', err.message);
+      }
+    };
+    fetchCosmicBrief();
+  }, []);
 
   return (
     <main>
@@ -149,7 +172,7 @@ export default function Home() {
             </div>
           </div>
           <div className="hero__visual">
-            <CosmicMandala />
+            <CosmicMandala panchang={cosmicBrief} />
           </div>
         </div>
       </section>
@@ -168,15 +191,30 @@ export default function Home() {
               </div>
               <div className="sunmoon-info">
                 <span className="section-label">SUN SIGN TODAY</span>
-                <h3 className="sunmoon-name serif">Vrishchika · Scorpio</h3>
+                <h3 className="sunmoon-name serif">
+                  {cosmicBrief?.planets?.find(p => p.name === 'Sun')?.position
+                    ? `Sun in ${cosmicBrief.planets.find(p => p.name === 'Sun').position}`
+                    : 'Loading...'}
+                </h3>
                 <p className="sunmoon-desc text-muted">
-                  The Sun in Scorpio intensifies your drive for transformation.
-                  Deep introspection and power dynamics are highlighted today.
+                  The Sun's position influences your core identity and life purpose today.
+                  Focus on leadership and self-expression.
                 </p>
                 <div className="sunmoon-stats">
-                  <div><span className="ss-label">Degree</span><span className="ss-val">7°23'</span></div>
-                  <div><span className="ss-label">House</span><span className="ss-val">1st</span></div>
-                  <div><span className="ss-label">Nakshatra</span><span className="ss-val">Anuradha</span></div>
+                  <div>
+                    <span className="ss-label">Position</span>
+                    <span className="ss-val">
+                      {cosmicBrief?.planets?.find(p => p.name === 'Sun')?.position || '...'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="ss-label">Nakshatra</span>
+                    <span className="ss-val">{cosmicBrief?.nakshatra || '...'}</span>
+                  </div>
+                  <div>
+                    <span className="ss-label">Tithi</span>
+                    <span className="ss-val">{cosmicBrief?.tithi || '...'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -187,15 +225,30 @@ export default function Home() {
               </div>
               <div className="sunmoon-info">
                 <span className="section-label">MOON SIGN TODAY</span>
-                <h3 className="sunmoon-name serif">Mesha · Aries</h3>
+                <h3 className="sunmoon-name serif">
+                  {cosmicBrief?.planets?.find(p => p.name === 'Moon')?.position
+                    ? `Moon in ${cosmicBrief.planets.find(p => p.name === 'Moon').position}`
+                    : 'Loading...'}
+                </h3>
                 <p className="sunmoon-desc text-muted">
-                  Moon in Aries amplifies emotional courage. A powerful day for
-                  initiating new emotional journeys and asserting your needs.
+                  The Moon governs your emotions and intuition today.
+                  Trust your feelings and stay connected to your inner wisdom.
                 </p>
                 <div className="sunmoon-stats">
-                  <div><span className="ss-label">Degree</span><span className="ss-val">12°41'</span></div>
-                  <div><span className="ss-label">Tithi</span><span className="ss-val">Dwitiya</span></div>
-                  <div><span className="ss-label">Nakshatra</span><span className="ss-val">Rohini</span></div>
+                  <div>
+                    <span className="ss-label">Position</span>
+                    <span className="ss-val">
+                      {cosmicBrief?.planets?.find(p => p.name === 'Moon')?.position || '...'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="ss-label">Tithi</span>
+                    <span className="ss-val">{cosmicBrief?.tithi || '...'}</span>
+                  </div>
+                  <div>
+                    <span className="ss-label">Nakshatra</span>
+                    <span className="ss-val">{cosmicBrief?.nakshatra || '...'}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -237,14 +290,15 @@ export default function Home() {
               <span className="section-label">LIVE NOW</span>
               <h3 className="cosmic-brief__title serif">Today's Cosmic Brief</h3>
               <p className="text-muted" style={{ fontSize: 14, lineHeight: 1.6 }}>
-                Moon transits Rohini Nakshatra. A favourable window for new
-                beginnings, relationships, and creative work.
+                {cosmicBrief
+                  ? `Moon in ${cosmicBrief.nakshatra} Nakshatra. ${cosmicBrief.guidance?.split('.')[0]}.`
+                  : 'Loading cosmic energies...'}
               </p>
               <div className="cosmic-brief__rows">
                 {[
-                  { label: 'Tithi',     value: 'Shukla Dwitiya' },
-                  { label: 'Nakshatra', value: 'Rohini' },
-                  { label: 'Yoga',      value: 'Saubhagya' },
+                  { label: 'Tithi',     value: cosmicBrief?.tithi     || '...' },
+                  { label: 'Nakshatra', value: cosmicBrief?.nakshatra  || '...' },
+                  { label: 'Yoga',      value: cosmicBrief?.yoga       || '...' },
                 ].map(r => (
                   <div className="cosmic-row" key={r.label}>
                     <span className="text-muted">{r.label}</span>
@@ -255,7 +309,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Tools Grid - New Style */}
+          {/* Tools Grid */}
           <div className="tools-grid">
             {TOOLS.map((t, i) => (
               <Link to={t.href} key={i} className="tool-card">
@@ -316,10 +370,19 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="astro-card__actions">
-                  <button className="btn-secondary astro-btn">CHAT</button>
+                  <button className="btn-secondary astro-btn"
+                    onClick={() => navigate('/consultations')}>
+                    CHAT
+                  </button>
                   {a.status === 'busy'
-                    ? <button className="btn-secondary astro-btn">NOTIFY</button>
-                    : <button className="btn-primary  astro-btn">CALL</button>
+                    ? <button className="btn-secondary astro-btn"
+                        onClick={() => navigate('/consultations')}>
+                        NOTIFY
+                      </button>
+                    : <button className="btn-primary astro-btn"
+                        onClick={() => navigate('/consultations')}>
+                        CALL
+                      </button>
                   }
                 </div>
               </div>
@@ -389,20 +452,15 @@ export default function Home() {
                   <h4 className="remedy-card__name serif">{r.name}</h4>
                   <div className="remedy-card__footer">
                     <span>{convert(r.price)}</span>
-                    <span className="btn-ghost">VIEW →</span>
+                    <span className="btn-ghost"
+                      onClick={() => navigate('/remedies')}
+                      style={{ cursor: 'pointer' }}>
+                      VIEW →
+                    </span>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
-          <div className="puja-banner card">
-            <div>
-              <span className="section-label">LIVE PUJA STREAMING</span>
-              <h3 className="puja-banner__title serif">
-                Book a personalised puja at sacred temples across Bharat.
-              </h3>
-            </div>
-            <Link to="/puja" className="btn-primary">Browse Pujas</Link>
           </div>
         </div>
       </section>
@@ -653,50 +711,26 @@ export default function Home() {
         }
         .cosmic-row:last-child { border-bottom: none; }
 
-        /* Tools Grid - New Style */
+        /* Tools Grid */
         .tools-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 16px;
         }
         .tool-card {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          padding: 28px;
-          background: var(--navy-card);
-          border: 1px solid var(--border-light);
-          border-radius: 16px;
-          cursor: pointer;
-          transition: all 0.2s ease;
+          display: flex; flex-direction: column; gap: 14px; padding: 28px;
+          background: var(--navy-card); border: 1px solid var(--border-light);
+          border-radius: 16px; cursor: pointer; transition: all 0.2s ease;
           text-decoration: none;
         }
-        .tool-card:hover {
-          border-color: var(--border);
-          transform: translateY(-2px);
-        }
+        .tool-card:hover { border-color: var(--border); transform: translateY(-2px); }
         .tool-card__icon {
-          width: 48px;
-          height: 48px;
-          background: rgba(201,150,60,0.12);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 22px;
+          width: 48px; height: 48px; background: rgba(201,150,60,0.12);
+          border-radius: 12px; display: flex; align-items: center;
+          justify-content: center; font-size: 22px;
         }
-        .tool-card__title {
-          font-size: 17px;
-          font-weight: 600;
-          color: var(--text-primary);
-          font-family: var(--font-sans);
-          line-height: 1.3;
-        }
-        .tool-card__desc {
-          font-size: 13px;
-          color: var(--text-muted);
-          line-height: 1.5;
-        }
+        .tool-card__title { font-size: 17px; font-weight: 600; color: var(--text-primary); font-family: var(--font-sans); line-height: 1.3; }
+        .tool-card__desc  { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
 
         /* Astrologers */
         .astro-section { padding: 100px 0; background: var(--navy-dark); }
@@ -706,11 +740,9 @@ export default function Home() {
         .filter-pill {
           padding: 8px 18px; border-radius: 100px;
           font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
-          color: var(--text-muted);
-          background: rgba(255,255,255,0.04);
+          color: var(--text-muted); background: rgba(255,255,255,0.04);
           border: 1px solid var(--border-light);
-          cursor: pointer; transition: all 0.2s;
-          font-family: var(--font-sans);
+          cursor: pointer; transition: all 0.2s; font-family: var(--font-sans);
         }
         .filter-pill:hover { color: var(--text-primary); border-color: var(--border); }
         .filter-pill.active { background: var(--gold); color: var(--navy-deep); border-color: var(--gold); }
@@ -718,10 +750,7 @@ export default function Home() {
         .astro-card { overflow: hidden; display: flex; flex-direction: column; }
         .astro-card__top { display: flex; justify-content: space-between; align-items: center; padding: 14px 14px 0; }
         .astro-card__rating { font-size: 13px; font-weight: 600; color: var(--gold-light); }
-        .status-badge {
-          display: inline-flex; align-items: center; gap: 6px;
-          font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 100px;
-        }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 100px; }
         .status-badge--online { background: rgba(34,197,94,0.15); color: #4ade80; }
         .status-badge--busy   { background: rgba(251,191,36,0.15); color: #fbbf24; }
         .status-badge--offline{ background: rgba(100,116,139,0.15); color: #94a3b8; }
@@ -762,8 +791,6 @@ export default function Home() {
         .remedy-card__body { padding: 20px; display: flex; flex-direction: column; gap: 6px; }
         .remedy-card__name { font-size: 20px; font-weight: 400; }
         .remedy-card__footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 16px; font-weight: 500; }
-        .puja-banner { display: flex; justify-content: space-between; align-items: center; padding: 36px 40px; gap: 24px; }
-        .puja-banner__title { font-size: 26px; font-weight: 400; margin-top: 8px; }
 
         /* Testimonials */
         .testimonials-section { padding: 100px 0; }
@@ -798,7 +825,6 @@ export default function Home() {
           .puja-header { grid-template-columns: 1fr; }
           .testimonials-grid { grid-template-columns: 1fr; }
           .counter-card { flex-direction: column; text-align: center; padding: 40px 24px; }
-          .puja-banner { flex-direction: column; text-align: center; }
         }
         @media (max-width: 600px) {
           .tools-grid, .puja-grid, .astro-grid, .remedies-grid { grid-template-columns: 1fr; }

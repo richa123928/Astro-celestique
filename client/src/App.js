@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CurrencyProvider } from './context/CurrencyContext';
+import { TimezoneProvider } from './context/TimezoneContext';
 import { Toaster } from 'react-hot-toast';
 
 // Layout
@@ -13,6 +14,15 @@ import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Horoscopes from './pages/Horoscopes';
 import AIChat from './pages/AIChat';
+import Consultations from './pages/Consultations';
+import Kundli from './pages/Kundli';
+import Calculators from './pages/Calculators';
+import Compatibility from './pages/Compatibility';
+import Remedies from './pages/Remedies';
+import Panchang from './pages/Panchang';
+import AITools from './pages/AITools';
+import Puja from './pages/Puja';
+import Admin from './pages/Admin';
 
 // Protected Route
 function ProtectedRoute({ children }) {
@@ -61,12 +71,25 @@ function Layout({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/"                element={<Layout><Home /></Layout>} />
-      <Route path="/auth"            element={<Auth />} />
-      <Route path="/horoscopes"      element={<Layout><Horoscopes /></Layout>} />
-      <Route path="/horoscopes/:type" element={<Layout><Horoscopes /></Layout>} />
-      <Route path="/ai-chat" element={<Layout><AIChat /></Layout>} />
-      <Route path="*"                element={<Navigate to="/" replace />} />
+      <Route path="/"                    element={<Layout><Home /></Layout>} />
+      <Route path="/auth"                element={<Auth />} />
+      <Route path="/horoscopes"          element={<Layout><Horoscopes /></Layout>} />
+      <Route path="/horoscopes/:type"    element={<Layout><Horoscopes /></Layout>} />
+      <Route path="/ai-chat"             element={<Layout><AIChat /></Layout>} />
+      <Route path="/consultations"       element={<Layout><Consultations /></Layout>} />
+      <Route path="/kundli"              element={<Layout><Kundli /></Layout>} />
+      <Route path="/kundli/:type"        element={<Layout><Kundli /></Layout>} />
+      <Route path="/calculators"         element={<Layout><Calculators /></Layout>} />
+      <Route path="/calculators/:tool"   element={<Layout><Calculators /></Layout>} />
+      <Route path="/compatibility"       element={<Layout><Compatibility /></Layout>} />
+      <Route path="/compatibility/:type" element={<Layout><Compatibility /></Layout>} />
+      <Route path="/remedies"            element={<Layout><Remedies /></Layout>} />
+      <Route path="/panchang"            element={<Layout><Panchang /></Layout>} />
+      <Route path="/ai-tools"            element={<Layout><AITools /></Layout>} />
+      <Route path="/puja"                element={<Layout><Puja /></Layout>} />
+      <Route path="/puja/:pujaKey"       element={<Layout><Puja /></Layout>} />
+      <Route path="/admin"               element={<Layout><Admin /></Layout>} />
+      <Route path="*"                    element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
@@ -76,17 +99,19 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <CurrencyProvider>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: 'var(--navy-card)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border)',
-              }
-            }}
-          />
-          <AppRoutes />
+          <TimezoneProvider>
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: 'var(--navy-card)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                }
+              }}
+            />
+            <AppRoutes />
+          </TimezoneProvider>
         </CurrencyProvider>
       </AuthProvider>
     </BrowserRouter>

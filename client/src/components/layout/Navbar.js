@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency, CURRENCIES } from '../../context/CurrencyContext';
+import { useTimezone, TIMEZONES } from '../../context/TimezoneContext';
 import './Navbar.css';
 
 const NAV_LINKS = [
@@ -19,6 +20,19 @@ export default function Navbar() {
   const [currencyOpen,  setCurrencyOpen]  = useState(false);
   const { user, logout, isAuthenticated } = useAuth();
   const { currency, setCurrency }         = useCurrency();
+  const { timezone, setTimezone }         = useTimezone();
+const [timezoneOpen, setTimezoneOpen]   = useState(false);
+  const [currentTime, setCurrentTime]     = useState('');
+const { getCurrentTime, currentTZ }     = useTimezone();
+
+useEffect(() => {
+  const updateTime = () => {
+    setCurrentTime(getCurrentTime());
+  };
+  updateTime();
+  const interval = setInterval(updateTime, 1000);
+  return () => clearInterval(interval);
+}, [timezone]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -67,6 +81,34 @@ export default function Navbar() {
                   >
                     <span className="currency-symbol">{c.symbol}</span>
                     <span>{c.code}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+         {/* Timezone Switcher */}
+          <div className="currency-switcher" onClick={() => setTimezoneOpen(o => !o)}
+            style={{ position: 'relative' }}>
+            <span>🌐</span>
+            <span>{timezone}</span>
+            <span style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 2 }}>{currentTime}</span>
+            <span className="currency-arrow">▾</span>
+            {timezoneOpen && (
+              <div className="currency-dropdown" style={{ minWidth: 200, maxHeight: 320, overflowY: 'auto' }}>
+                {TIMEZONES.map(t => (
+                  <button
+                    key={t.code}
+                    className={`currency-option ${timezone === t.code ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTimezone(t.code);
+                      setTimezoneOpen(false);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
+                  >
+                    <span style={{ fontSize: 11, color: 'var(--gold)', width: 52, flexShrink: 0 }}>{t.offset}</span>
+                    <span style={{ fontSize: 12 }}>{t.code} — {t.label}</span>
                   </button>
                 ))}
               </div>

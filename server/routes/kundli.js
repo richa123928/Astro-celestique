@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const { generateKundli } = require('../controllers/kundliController');
 
-router.get('/', (req, res) => {
-  res.json({ success: true, message: 'Kundli route working' });
-});
+router.post('/generate', generateKundli);
 
 module.exports = router;
