@@ -23,6 +23,8 @@ exports.register = async (req, res) => {
     }
 
     const user = new User({ name, email, password, walletBalance: 50 });
+    user.walletBalance += 50;
+    // await user.save();
     await user.save();
 
     const token = user.getSignedJwtToken();

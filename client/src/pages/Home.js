@@ -26,10 +26,26 @@ const TOOLS = [
 ];
 
 const ASTROLOGERS = [
-  { name: 'Acharya Vimal',     expertise: 'Vedic · KP System',  years: 18, rate: 4500,  rating: 4.9, status: 'online' },
-  { name: 'Dr. Sunita Sharma', expertise: 'Psychology · Vedic', years: 22, rate: 8000,  rating: 4.9, status: 'online' },
-  { name: 'Pandit Raghav',     expertise: 'Prashna · Nadi',     years: 9,  rate: 3000,  rating: 4.7, status: 'busy'   },
-  { name: 'Meera Kapur',       expertise: 'Numerology · Tarot', years: 14, rate: 5500,  rating: 4.8, status: 'online' },
+  { 
+    id: 1,
+    name: 'Shukramuni Ji', 
+    expertise: 'Vedic · Brighu Nadi · Remedies', 
+    years: 18, 
+    rate: 30, 
+    rating: 4.9, 
+    status: 'online',
+    image: require('../assets/images/shukramuni.png')
+  },
+  { 
+    id: 2,
+    name: 'Kaalchakra Manoj Gupta', 
+    expertise: 'Ancient Vedic Astrology · Remedies', 
+    years: 9, 
+    rate: 30, 
+    rating: 4.7, 
+    status: 'online',
+    image: require('../assets/images/manoj.png')
+  },
 ];
 
 const FILTERS = ['ALL', 'VEDIC', 'LOVE & MARRIAGE', 'CAREER', 'TAROT', 'NUMEROLOGY', 'NADI', 'VASTU'];
@@ -127,6 +143,22 @@ export default function Home() {
   const [activeFilter, setActiveFilter]     = useState('ALL');
   const [cosmicBrief,  setCosmicBrief]      = useState(null);
 
+  const [liveStatus, setLiveStatus] = useState({});
+
+useEffect(() => {
+  const checkStatus = async () => {
+    try {
+      const { data } = await axios.get('/api/astrologers/status');
+      setLiveStatus({
+        '1': data.onlineAstrologers.includes('1') ? 'online' : 'offline'
+      });
+    } catch (err) {}
+  };
+  checkStatus();
+  const interval = setInterval(checkStatus, 5000);
+  return () => clearInterval(interval);
+}, []);
+
   useEffect(() => {
     const fetchCosmicBrief = async () => {
       try {
@@ -180,81 +212,7 @@ export default function Home() {
       {/* ── Stats ────────────────────────────────────────────────────── */}
       <StatsSection />
 
-      {/* ── Sun & Moon ───────────────────────────────────────────────── */}
-      <section className="sunmoon-section">
-        <div className="container">
-          <div className="sunmoon-grid">
-            <div className="sun-card card">
-              <div className="sun-orb">
-                <div className="sun-rays" />
-                <span>☀️</span>
-              </div>
-              <div className="sunmoon-info">
-                <span className="section-label">SUN SIGN TODAY</span>
-                <h3 className="sunmoon-name serif">
-                  {cosmicBrief?.planets?.find(p => p.name === 'Sun')?.position
-                    ? `Sun in ${cosmicBrief.planets.find(p => p.name === 'Sun').position}`
-                    : 'Loading...'}
-                </h3>
-                <p className="sunmoon-desc text-muted">
-                  The Sun's position influences your core identity and life purpose today.
-                  Focus on leadership and self-expression.
-                </p>
-                <div className="sunmoon-stats">
-                  <div>
-                    <span className="ss-label">Position</span>
-                    <span className="ss-val">
-                      {cosmicBrief?.planets?.find(p => p.name === 'Sun')?.position || '...'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="ss-label">Nakshatra</span>
-                    <span className="ss-val">{cosmicBrief?.nakshatra || '...'}</span>
-                  </div>
-                  <div>
-                    <span className="ss-label">Tithi</span>
-                    <span className="ss-val">{cosmicBrief?.tithi || '...'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="moon-card card">
-              <div className="moon-orb">
-                <div className="moon-glow" />
-                <span>🌙</span>
-              </div>
-              <div className="sunmoon-info">
-                <span className="section-label">MOON SIGN TODAY</span>
-                <h3 className="sunmoon-name serif">
-                  {cosmicBrief?.planets?.find(p => p.name === 'Moon')?.position
-                    ? `Moon in ${cosmicBrief.planets.find(p => p.name === 'Moon').position}`
-                    : 'Loading...'}
-                </h3>
-                <p className="sunmoon-desc text-muted">
-                  The Moon governs your emotions and intuition today.
-                  Trust your feelings and stay connected to your inner wisdom.
-                </p>
-                <div className="sunmoon-stats">
-                  <div>
-                    <span className="ss-label">Position</span>
-                    <span className="ss-val">
-                      {cosmicBrief?.planets?.find(p => p.name === 'Moon')?.position || '...'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="ss-label">Tithi</span>
-                    <span className="ss-val">{cosmicBrief?.tithi || '...'}</span>
-                  </div>
-                  <div>
-                    <span className="ss-label">Nakshatra</span>
-                    <span className="ss-val">{cosmicBrief?.nakshatra || '...'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* ── AI Tools Suite ───────────────────────────────────────────── */}
       <section className="suite-section">
@@ -275,7 +233,8 @@ export default function Home() {
               <span className="ai-card__badge">● AI ASTROLOGER · BETA</span>
               <h3 className="ai-card__title serif">Chat with our Vedic AI Oracle</h3>
               <p className="ai-card__desc text-muted">
-                Trained on 10,000+ classical Sanskrit texts. Ask anything —
+                Astro Celestique AI is trained on 1,000+ ancient Sanskrit texts,
+                built exclusively for Vedic astrology. Ask anything —
                 career, love, karma, dharma.
               </p>
               <div className="ai-card__demo">
@@ -309,6 +268,8 @@ export default function Home() {
             </div>
           </div>
 
+          
+
           {/* Tools Grid */}
           <div className="tools-grid">
             {TOOLS.map((t, i) => (
@@ -335,7 +296,7 @@ export default function Home() {
                 the <em className="gold">Parashara lineage.</em>
               </h2>
             </div>
-            <Link to="/consultations" className="btn-ghost">BROWSE 1,240+ ASTROLOGERS →</Link>
+            <Link to="/consultations" className="btn-ghost">BROWSE OUR ASTROLOGERS →</Link>
           </div>
 
           <div className="astro-filters">
@@ -354,13 +315,18 @@ export default function Home() {
             {ASTROLOGERS.map((a, i) => (
               <div className="astro-card card" key={i}>
                 <div className="astro-card__top">
-                  <span className={`status-badge status-badge--${a.status}`}>
-                    {a.status.toUpperCase()}
-                  </span>
+                  <span className={`status-badge status-badge--${a.id === 1 ? (liveStatus['1'] || 'offline') : a.status}`}>
+                  {(a.id === 1 ? (liveStatus['1'] || 'offline') : a.status).toUpperCase()}
+                </span>
                   <span className="astro-card__rating">★ {a.rating}</span>
                 </div>
-                <div className="astro-card__avatar">
-                  {a.name.split(' ').map(n => n[0]).join('')}
+                <div className="astro-card__avatar" style={{ padding: 0, overflow: 'hidden' }}>
+                  {a.image ? (
+                    <img src={a.image} alt={a.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 25%' }} />
+                  ) : (
+                    <span>{a.name.split(' ').map(n => n[0]).join('')}</span>
+                  )}
                 </div>
                 <div className="astro-card__info">
                   <span className="astro-card__price gold">{convert(a.rate)}/min</span>
@@ -746,7 +712,7 @@ export default function Home() {
         }
         .filter-pill:hover { color: var(--text-primary); border-color: var(--border); }
         .filter-pill.active { background: var(--gold); color: var(--navy-deep); border-color: var(--gold); }
-        .astro-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
+        .astro-grid { display: grid; grid-template-columns: repeat(2,1fr); max-width: 720px; gap: 20px; }
         .astro-card { overflow: hidden; display: flex; flex-direction: column; }
         .astro-card__top { display: flex; justify-content: space-between; align-items: center; padding: 14px 14px 0; }
         .astro-card__rating { font-size: 13px; font-weight: 600; color: var(--gold-light); }

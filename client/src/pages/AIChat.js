@@ -23,7 +23,7 @@ export default function AIChat() {
   const [messages,   setMessages]   = useState([
     {
       role: 'assistant',
-      content: `Namaste! 🙏 I am Jyoti, your personal Vedic astrologer at Astro Celestique.\n\nI am here to guide you through the cosmic energies shaping your life — career, love, karma, and dharma.\n\nEach message costs ${convert(10)} from your wallet. How may I illuminate your path today?`
+      content: `Namaste! 🙏 I am Jyoti, your personal Vedic astrologer at Astro Celestique.\n\nI am here to guide you through the cosmic energies shaping your life — career, love, karma, and dharma.\n\nEach message costs ${convert(20)} from your wallet. How may I illuminate your path today?`
     }
   ]);
   const [input,        setInput]        = useState('');
@@ -144,7 +144,7 @@ export default function AIChat() {
                   animation: 'pulse 2s infinite'
                 }} />
                 <span style={{ fontSize: 12, color: '#4ade80' }}>
-                  Online · {convert(10)} per message
+                  Online · {convert(20)} per message
                 </span>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://astro-celestique.onrender.com/api',
 });
 
 // Add token to every request automatically

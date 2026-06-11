@@ -24,6 +24,12 @@ import AITools from './pages/AITools';
 import Puja from './pages/Puja';
 import Admin from './pages/Admin';
 
+import ConsultationChat from './pages/ConsultationChat';
+import AstrologerDashboard from './pages/AstrologerDashboard';
+import Privacy from './pages/Privacy';
+import PaymentPolicy from './pages/PaymentPolicy';
+import Support from './pages/Support';
+
 // Protected Route
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -89,6 +95,11 @@ function AppRoutes() {
       <Route path="/puja"                element={<Layout><Puja /></Layout>} />
       <Route path="/puja/:pujaKey"       element={<Layout><Puja /></Layout>} />
       <Route path="/admin"               element={<Layout><Admin /></Layout>} />
+      <Route path="/consultation/chat" element={<Layout><ConsultationChat /></Layout>} />
+      <Route path="/astrologer/dashboard" element={<Layout><AstrologerDashboard /></Layout>} />
+      <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
+<Route path="/payment-policy" element={<Layout><PaymentPolicy /></Layout>} />
+<Route path="/support" element={<Layout><Support /></Layout>} />
       <Route path="*"                    element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -18,22 +18,20 @@ export default function Navbar() {
   const [scrolled,      setScrolled]      = useState(false);
   const [menuOpen,      setMenuOpen]      = useState(false);
   const [currencyOpen,  setCurrencyOpen]  = useState(false);
+  const [timezoneOpen,  setTimezoneOpen]  = useState(false);
+  const [currentTime,   setCurrentTime]   = useState('');
+
   const { user, logout, isAuthenticated } = useAuth();
   const { currency, setCurrency }         = useCurrency();
-  const { timezone, setTimezone }         = useTimezone();
-const [timezoneOpen, setTimezoneOpen]   = useState(false);
-  const [currentTime, setCurrentTime]     = useState('');
-const { getCurrentTime, currentTZ }     = useTimezone();
-
-useEffect(() => {
-  const updateTime = () => {
-    setCurrentTime(getCurrentTime());
-  };
-  updateTime();
-  const interval = setInterval(updateTime, 1000);
-  return () => clearInterval(interval);
-}, [timezone]);
+  const { timezone, setTimezone, getCurrentTime } = useTimezone();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const updateTime = () => setCurrentTime(getCurrentTime());
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [timezone]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -87,7 +85,7 @@ useEffect(() => {
             )}
           </div>
 
-         {/* Timezone Switcher */}
+          {/* Timezone Switcher */}
           <div className="currency-switcher" onClick={() => setTimezoneOpen(o => !o)}
             style={{ position: 'relative' }}>
             <span>🌐</span>
@@ -134,6 +132,11 @@ useEffect(() => {
             </button>
           )}
 
+          <Link to="/astrologer/dashboard"
+            style={{ fontSize: 12, color: 'var(--text-dim)', marginRight: 12, textDecoration: 'none' }}>
+            Astrologer Login
+          </Link>
+
           {/* CTA Button */}
           <Link to="/consultations" className="btn-primary navbar__cta">
             <span className="navbar__cta-dot">●</span>
@@ -163,6 +166,9 @@ useEffect(() => {
               {l.label}
             </Link>
           ))}
+          <Link to="/astrologer/dashboard" className="navbar__mobile-link" onClick={() => setMenuOpen(false)}>
+            Astrologer Login
+          </Link>
           {isAuthenticated ? (
             <button className="btn-ghost" onClick={() => { logout(); setMenuOpen(false); }}>
               Logout
