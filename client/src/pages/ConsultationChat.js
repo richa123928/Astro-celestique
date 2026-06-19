@@ -41,7 +41,7 @@ export default function ConsultationChat() {
 
   useEffect(() => {
     if (!astrologer) { navigate('/consultations'); return; }
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io('https://astro-celestique.onrender.com');
     setSocket(newSocket);
 
     newSocket.on('request_sent', ({ sessionId }) => {

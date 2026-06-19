@@ -15,7 +15,11 @@ const httpServer = http.createServer(app);
 // Socket.io for real-time chat
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'https://astrocelestique.com',
+      'https://www.astrocelestique.com',
+    ],
     methods: ['GET', 'POST']
   }
 });
@@ -24,7 +28,11 @@ const io = new Server(httpServer, {
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'https://astrocelestique.com',
+    'https://www.astrocelestique.com',
+  ],
   credentials: true
 }));
 app.use(express.json());

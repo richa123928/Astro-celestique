@@ -36,7 +36,7 @@ export default function AstrologerDashboard() {
     if (authLoading) return;
     if (!isAuthenticated) { navigate('/auth'); return; }
 
-    const newSocket = io('http://localhost:5000');
+    const newSocket = io('https://astro-celestique.onrender.com');
     setSocket(newSocket);
 
     // Register as astrologer when socket connects
