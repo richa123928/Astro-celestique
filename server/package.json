@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "astronomia": "^4.2.0",
+    "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -22,11 +23,13 @@
     "groq-sdk": "^1.2.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "luxon": "^3.7.2",
     "mongoose": "^9.6.2",
     "morgan": "^1.10.1",
     "nodemailer": "^8.0.8",
     "openai": "^6.38.0",
     "razorpay": "^2.9.6",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "tz-lookup": "^6.1.25"
   }
 }

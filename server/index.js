@@ -51,6 +51,7 @@ app.use('/api/payments',    require('./routes/payments'));
 app.use('/api/admin',       require('./routes/admin'));
 app.use('/api/consultation', require('./routes/consultation'));
 app.use('/api/panchang',    require('./routes/panchang'));
+app.use('/api/places', require('./routes/places'));
 
 
 // Health check

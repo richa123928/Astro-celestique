@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import PlaceAutocomplete from '../components/PlaceAutocomplete';
 
 const RASHI_LIST = [
   'Mesha (Aries)', 'Vrishabha (Taurus)', 'Mithuna (Gemini)',
@@ -25,8 +26,8 @@ export default function Kundli() {
   const [step,    setStep]    = useState(1); // 1=form, 2=result
   const [loading, setLoading] = useState(false);
   const [kundli,  setKundli]  = useState(null);
-  const [form,    setForm]    = useState({
-    name: '', dob: '', tob: '', pob: '', timeNA: false, gender: 'male'
+  const [form, setForm] = useState({
+    name: '', dob: '', tob: '', pob: '', lat: null, lng: null, timeNA: false, gender: 'male'
   });
 
   const generateKundli = async (e) => {
@@ -37,7 +38,8 @@ export default function Kundli() {
       setKundli(data);
       setStep(2);
     } catch (err) {
-      toast.error('Failed to generate Kundli. Please try again.');
+      const message = err.response?.data?.message || 'Failed to generate Kundli. Please try again.';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -166,11 +168,15 @@ export default function Kundli() {
                   <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>
                     Place of Birth <span style={{ color: 'var(--gold)' }}>*</span>
                   </label>
-                  <input type="text" required placeholder="City, State, Country"
+                  <PlaceAutocomplete
                     value={form.pob}
-                    onChange={e => setForm(f => ({ ...f, pob: e.target.value }))}
-                    style={inputStyle}
+                    onChange={text => setForm(f => ({ ...f, pob: text }))}
+                    onSelect={place => setForm(f => ({ ...f, pob: place.displayName, lat: place.lat, lng: place.lng }))}
+                    inputStyle={inputStyle}
                   />
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                    Start typing and pick your city from the list for the most accurate chart.
+                  </p>
                 </div>
 
                 <button type="submit" disabled={loading}
@@ -239,23 +245,29 @@ export default function Kundli() {
                   position: 'relative',
                   background: 'var(--navy-mid)',
                 }}>
-                  {/* Simple North Indian chart layout */}
-                  {RASHI_LIST.map((rashi, i) => (
-                    <div key={i} style={{
-                      border: '1px solid var(--border-light)',
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center',
-                      padding: 4, fontSize: 10,
-                      color: 'var(--text-muted)',
-                      gridColumn: getGridCol(i),
-                      gridRow: getGridRow(i),
-                    }}>
-                      <span style={{ color: 'var(--gold)', fontSize: 12 }}>{i + 1}</span>
-                      <span style={{ fontSize: 9, textAlign: 'center' }}>
-                        {rashi.split('(')[0]}
-                      </span>
-                    </div>
-                  ))}
+                  {/* North Indian chart layout — rotates based on real Ascendant */}
+                  {(() => {
+                    const houses = getChartHouses(kundli);
+                    if (!houses) return null;
+                    return houses.map((house, i) => (
+                      <div key={i} style={{
+                        border: '1px solid var(--border-light)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                        padding: 4, fontSize: 10,
+                        color: 'var(--text-muted)',
+                        gridColumn: getGridCol(i),
+                        gridRow: getGridRow(i),
+                      }}>
+                        <span style={{ color: 'var(--gold)', fontSize: 12 }}>
+                          {RASHI_LIST[house.rashiIndex].split('(')[0]}
+                        </span>
+                        <span style={{ fontSize: 9, textAlign: 'center', marginTop: 2 }}>
+                          {house.planets.join(', ') || '—'}
+                        </span>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
 
@@ -268,14 +280,14 @@ export default function Kundli() {
                 <span className="section-label">BASIC DETAILS</span>
                 <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {[
-                    { label: 'Rashi (Moon Sign)', value: kundli.rashi || 'Mesha' },
-                    { label: 'Lagna (Ascendant)',  value: kundli.lagna || 'Vrishabha' },
-                    { label: 'Nakshatra',          value: kundli.nakshatra || 'Rohini' },
-                    { label: 'Pada',               value: kundli.pada || '2' },
-                    { label: 'Tithi',              value: kundli.tithi || 'Shukla Dwitiya' },
-                    { label: 'Yoga',               value: kundli.yoga || 'Saubhagya' },
-                    { label: 'Current Dasha',      value: kundli.dasha || 'Saturn Mahadasha' },
-                    { label: 'Dasha End',          value: kundli.dashaEnd || '2028' },
+                    { label: 'Rashi (Moon Sign)', value: kundli.planets?.Moon?.rashi },
+                    { label: 'Lagna (Ascendant)', value: kundli.ascendant?.rashi },
+                    { label: 'Nakshatra',         value: kundli.panchang?.nakshatra?.name },
+                    { label: 'Pada',              value: kundli.panchang?.nakshatra?.pada },
+                    { label: 'Tithi',             value: kundli.panchang?.tithi?.label },
+                    { label: 'Yoga',              value: kundli.panchang?.yoga?.name },
+                    { label: 'Current Dasha',     value: kundli.dasha?.current?.lord ? `${kundli.dasha.current.lord} Mahadasha` : null },
+                    { label: 'Dasha End',         value: kundli.dasha?.current?.end },
                   ].map(item => (
                     <div key={item.label} style={{
                       display: 'flex', justifyContent: 'space-between',
@@ -284,7 +296,7 @@ export default function Kundli() {
                       fontSize: 14
                     }}>
                       <span style={{ color: 'var(--text-muted)' }}>{item.label}</span>
-                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{item.value}</span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{item.value || '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -304,7 +316,7 @@ export default function Kundli() {
                 gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 12, marginTop: 16
               }}>
-                {PLANETS.map((planet, i) => (
+                {PLANETS.map((planet) => (
                   <div key={planet.name} style={{
                     background: 'var(--navy-mid)',
                     border: '1px solid var(--border-light)',
@@ -325,7 +337,7 @@ export default function Kundli() {
                         {planet.name}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {RASHI_LIST[i % 12].split('(')[0]}
+                        {kundli.planets?.[planet.name]?.rashi?.split('(')[0] || '—'}
                       </div>
                     </div>
                   </div>
@@ -402,4 +414,28 @@ function getGridCol(i) {
 function getGridRow(i) {
   const rows = [1, 1, 1, 2, 3, 4, 4, 4, 3, 2, 2, 2];
   return rows[i];
+}
+
+// Given the real chart data, figure out which house (1-12) each planet
+// sits in, based on its rashi relative to the Ascendant's rashi. North
+// Indian charts rotate their rashi labels around a fixed house layout —
+// house 1 always shows the Ascendant's sign, then signs follow in order.
+function getChartHouses(kundli) {
+  if (!kundli?.ascendant || !kundli?.planets) return null;
+
+  const ascendantIndex = Math.floor(kundli.ascendant.longitude / 30);
+
+  const houses = Array.from({ length: 12 }, (_, i) => ({
+    houseNumber: i + 1,
+    rashiIndex: (ascendantIndex + i) % 12,
+    planets: []
+  }));
+
+  Object.entries(kundli.planets).forEach(([name, data]) => {
+    const planetRashiIndex = Math.floor(data.longitude / 30);
+    const houseIndex = (planetRashiIndex - ascendantIndex + 12) % 12;
+    houses[houseIndex].planets.push(name);
+  });
+
+  return houses;
 }
