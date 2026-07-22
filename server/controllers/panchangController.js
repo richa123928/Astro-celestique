@@ -1,4 +1,5 @@
 const Groq = require('groq-sdk');
+const { calculateDailyPanchang } = require('../services/vedicChartEngine');
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -8,76 +9,70 @@ const groq = new Groq({
 // @route   POST /api/panchang/daily
 exports.getDailyPanchang = async (req, res) => {
   try {
-    const { date } = req.body;
+    const { date, lat, lng, timezone } = req.body;
     const panchangDate = date || new Date().toISOString().split('T')[0];
 
-    const dateObj = new Date(panchangDate);
-    const dayName = dateObj.toLocaleDateString('en-IN', { weekday: 'long' });
-    const fullDate = dateObj.toLocaleDateString('en-IN', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    // Real computed panchang — defaults to New Delhi if no location given.
+    // Tithi/Nakshatra/Yoga/Karana are location-independent; sunrise/sunset
+    // and the Rahu Kaal/Muhurta timings DO depend on location, so pass
+    // lat/lng through once you add a location picker to the Panchang page.
+    const computed = calculateDailyPanchang({
+      date: panchangDate,
+      lat: lat || 28.6139,
+      lng: lng || 77.2090,
+      timezone: timezone || 'Asia/Kolkata'
     });
 
-    const prompt = `You are a Vedic astrologer and Panchang expert. Calculate the Panchang for ${fullDate}.
+    // AI only writes the interpretive guidance text now, from real data.
+    const prompt = `You are an expert Vedic astrologer. Using ONLY the real Panchang data below, write exactly 3 sentences of practical, warm guidance for this day. Do not invent any astrological facts beyond what's given.
 
-Return ONLY this JSON with no extra text:
-{
-  "tithi": "Tithi name and number (e.g. Shukla Dwitiya)",
-  "nakshatra": "Nakshatra name (e.g. Rohini)",
-  "yoga": "Yoga name (e.g. Saubhagya)",
-  "karana": "Karana name (e.g. Bava)",
-  "var": "${dayName}",
-  "paksha": "Shukla Paksha or Krishna Paksha",
-  "vikramSamvat": "Vikram Samvat year and month (e.g. Vikram Samvat 2082, Vaishakha)",
-  "planets": [
-    {"name": "Sun",     "icon": "☀️", "position": "sign it is in"},
-    {"name": "Moon",    "icon": "🌙", "position": "sign it is in"},
-    {"name": "Mars",    "icon": "🔴", "position": "sign it is in"},
-    {"name": "Mercury", "icon": "💚", "position": "sign it is in"},
-    {"name": "Jupiter", "icon": "🟡", "position": "sign it is in"},
-    {"name": "Venus",   "icon": "⚪", "position": "sign it is in"},
-    {"name": "Saturn",  "icon": "🔵", "position": "sign it is in"},
-    {"name": "Rahu",    "icon": "🟣", "position": "sign it is in"},
-    {"name": "Ketu",    "icon": "🟤", "position": "sign it is in"}
-  ],
-  "auspicious": [
-    {"label": "Brahma Muhurta", "time": "time range"},
-    {"label": "Abhijit Muhurta","time": "time range"},
-    {"label": "Vijaya Muhurta", "time": "time range"},
-    {"label": "Godhuli Muhurta","time": "time range"}
-  ],
-  "inauspicious": [
-    {"label": "Rahu Kaal",   "time": "time range based on ${dayName}"},
-    {"label": "Gulika Kaal", "time": "time range"},
-    {"label": "Yamaganda",   "time": "time range"},
-    {"label": "Dur Muhurta", "time": "time range"}
-  ],
-  "guidance": "3 sentences of cosmic guidance and spiritual advice for this day based on the tithi, nakshatra and planetary positions"
-}`;
+Date: ${computed.date} (${computed.var})
+Tithi: ${computed.panchang.tithi.label}
+Nakshatra: ${computed.panchang.nakshatra.name}, Pada ${computed.panchang.nakshatra.pada}
+Yoga: ${computed.panchang.yoga.name}
+Karana: ${computed.panchang.karana.name}
+Moon sign: ${computed.planets.Moon.rashi}
+Sun sign: ${computed.planets.Sun.rashi}
+Rahu Kaal (inauspicious): ${computed.inauspicious[0].time}
+
+Respond only with valid JSON, no markdown, no preamble:
+{"guidance": "..."}`;
 
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
         {
           role: 'system',
-          content: 'You are an expert Vedic astrologer and Panchang calculator. Always respond with valid JSON only. No markdown, no backticks.'
+          content: 'You are an expert Vedic astrologer. Always respond with valid JSON only. No markdown, no backticks.'
         },
-        {
-          role: 'user',
-          content: prompt
-        }
+        { role: 'user', content: prompt }
       ],
       temperature: 0.6,
-      max_tokens: 1500,
+      max_tokens: 300,
     });
 
-    const text    = completion.choices[0].message.content;
+    const text = completion.choices[0].message.content;
     const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const panchangData = JSON.parse(cleaned);
+    const aiGuidance = JSON.parse(cleaned);
 
     res.status(200).json({
       success: true,
-      date: panchangDate,
-      ...panchangData
+      date: computed.date,
+      var: computed.var,
+      sunrise: computed.sunrise,
+      sunset: computed.sunset,
+      tithi: computed.panchang.tithi.label,
+      paksha: computed.panchang.tithi.paksha,
+      nakshatra: computed.panchang.nakshatra.name,
+      yoga: computed.panchang.yoga.name,
+      karana: computed.panchang.karana.name,
+      planets: Object.entries(computed.planets).map(([name, data]) => ({
+        name,
+        position: data.rashi
+      })),
+      auspicious: computed.auspicious,
+      inauspicious: computed.inauspicious,
+      guidance: aiGuidance.guidance
     });
 
   } catch (err) {

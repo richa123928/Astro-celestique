@@ -136,9 +136,12 @@ function tithiOf(tropicalMoonLon, tropicalSunLon) {
   return { index, paksha, number, label: `${paksha}, Tithi ${number}` };
 }
 
-function yogaOf(tropicalMoonLon, tropicalSunLon) {
+// IMPORTANT: Yoga is based on the SUM of Sun+Moon longitudes, so ayanamsa
+// does NOT cancel out the way it does for Tithi/Karana (which use the
+// DIFFERENCE). This MUST be called with sidereal longitudes, not tropical.
+function yogaOf(siderealMoonLon, siderealSunLon) {
   const span = 360 / 27;
-  const sum = norm360(tropicalMoonLon + tropicalSunLon);
+  const sum = norm360(siderealMoonLon + siderealSunLon);
   const index = Math.floor(sum / span);
   return { name: YOGA_NAMES[index], index };
 }
@@ -193,6 +196,44 @@ function calculateVimshottariDasha(siderealMoonLon, birthDate, asOfDate = new Da
   };
 }
 
+function degreeInSign(siderealLon) {
+  const deg = norm360(siderealLon) % 30;
+  const wholeDeg = Math.floor(deg);
+  const minutes = Math.round((deg - wholeDeg) * 60);
+  return { degree: wholeDeg, minutes, formatted: `${wholeDeg}°${minutes}'` };
+}
+
+/**
+ * Navamsa (D9) sign index for a given sidereal longitude, using the
+ * standard unified formula: movable signs start their navamsa cycle from
+ * themselves, fixed signs from the 9th sign, dual signs from the 5th —
+ * this formula produces exactly that classical result without needing
+ * separate branches per sign type.
+ */
+function navamsaIndexOf(siderealLon) {
+  const lon = norm360(siderealLon);
+  const rashiIndex = Math.floor(lon / 30);
+  const degreeInRashi = lon % 30;
+  const navamsaUnit = Math.floor(degreeInRashi / (30 / 9));
+  return (rashiIndex * 9 + navamsaUnit) % 12;
+}
+
+/**
+ * Retrograde check: compare a body's geocentric longitude 1 day apart. If
+ * it moved backward (accounting for 360° wraparound), it's retrograde.
+ * Sun and Moon are never retrograde geocentrically, so skip those. Rahu/Ketu
+ * (mean lunar node) are always retrograde by definition of the mean node.
+ */
+function isRetrograde(getLonFn, jde) {
+  const lonNow = getLonFn(jde);
+  const lonYesterday = getLonFn(jde - 1);
+  let diff = lonNow - lonYesterday;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  return diff < 0;
+}
+
+
 function calculateVedicChart({ utcDateTime, lat, lng }) {
   const birthDate = new Date(utcDateTime);
   const jde = dateToJde(birthDate);
@@ -218,17 +259,29 @@ function calculateVedicChart({ utcDateTime, lat, lng }) {
   });
   const ascendantSidereal = norm360(ascendantTropical - ayanamsa);
 
-  const planets = {};
+ const planets = {};
   Object.keys(sidereal_).forEach((body) => {
+    const retrograde = body === 'Sun' || body === 'Moon'
+      ? false
+      : body === 'Rahu' || body === 'Ketu'
+      ? true
+      : isRetrograde((j) => {
+          const map = { Mercury: mercury, Venus: venus, Mars: mars, Jupiter: jupiter, Saturn: saturn };
+          return geocentricLongitude(map[body], j);
+        }, jde);
+
     planets[body] = {
       longitude: Number(sidereal_[body].toFixed(4)),
-      rashi: rashiOf(sidereal_[body])
+      rashi: rashiOf(sidereal_[body]),
+      degree: degreeInSign(sidereal_[body]),
+      retrograde,
+      navamsaRashi: RASHI_NAMES[navamsaIndexOf(sidereal_[body])]
     };
   });
 
   const nakshatra = nakshatraOf(sidereal_.Moon);
   const tithi = tithiOf(tropical.Moon, tropical.Sun);
-  const yoga = yogaOf(tropical.Moon, tropical.Sun);
+  const yoga = yogaOf(sidereal_.Moon, sidereal_.Sun);
   const karana = karanaOf(tropical.Moon, tropical.Sun);
   const dasha = calculateVimshottariDasha(sidereal_.Moon, birthDate);
 
@@ -236,7 +289,9 @@ function calculateVedicChart({ utcDateTime, lat, lng }) {
     ayanamsa: Number(ayanamsa.toFixed(4)),
     ascendant: {
       longitude: Number(ascendantSidereal.toFixed(4)),
-      rashi: rashiOf(ascendantSidereal)
+      rashi: rashiOf(ascendantSidereal),
+      degree: degreeInSign(ascendantSidereal),
+      navamsaRashi: RASHI_NAMES[navamsaIndexOf(ascendantSidereal)]
     },
     planets,
     panchang: { tithi, nakshatra, yoga, karana },
@@ -244,4 +299,236 @@ function calculateVedicChart({ utcDateTime, lat, lng }) {
   };
 }
 
-module.exports = { calculateVedicChart };
+// ---- Daily Panchang (date-based, not birth-specific) ----
+
+/**
+ * Sunrise/sunset via the standard NOAA solar calculator algorithm.
+ * Accurate to ~1 minute — plenty precise for Rahu Kaal / Muhurta division,
+ * and self-contained (doesn't need iteration).
+ */
+function calculateSunTimes(dateUTC, latDeg, lngDeg) {
+  const start = Date.UTC(dateUTC.getUTCFullYear(), 0, 1);
+  const dayOfYear = Math.floor((dateUTC - start) / 86400000) + 1;
+
+  const gamma = (2 * Math.PI / 365) * (dayOfYear - 1 + 12 / 24);
+
+  const eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma)
+    - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+
+  const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma)
+    - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma)
+    - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+
+  const latRad = latDeg * D2R;
+  const zenith = 90.833 * D2R; // includes refraction + solar disk radius
+
+  const cosHa = (Math.cos(zenith) / (Math.cos(latRad) * Math.cos(decl))) - Math.tan(latRad) * Math.tan(decl);
+  const clamped = Math.max(-1, Math.min(1, cosHa));
+  const ha = Math.acos(clamped) * R2D;
+
+  const solarNoonMinutes = 720 - 4 * lngDeg - eqTime;
+  const sunriseMinutes = solarNoonMinutes - ha * 4;
+  const sunsetMinutes = solarNoonMinutes + ha * 4;
+
+  const dayStart = Date.UTC(dateUTC.getUTCFullYear(), dateUTC.getUTCMonth(), dateUTC.getUTCDate());
+  return {
+    sunrise: new Date(dayStart + sunriseMinutes * 60000),
+    sunset: new Date(dayStart + sunsetMinutes * 60000)
+  };
+}
+
+// Standard, widely-used weekday tables for dividing daylight into 8 equal
+// parts (0=Sunday...6=Saturday). segmentIndex is 1-based (which of the 8
+// daylight segments belongs to that period).
+const RAHU_KAAL_SEGMENT   = [8, 2, 7, 5, 6, 4, 3];
+const YAMAGANDA_SEGMENT   = [5, 4, 3, 2, 1, 7, 6];
+const GULIKA_KAAL_SEGMENT = [7, 6, 5, 4, 3, 2, 1];
+
+function segmentToTimeRange(sunrise, sunset, segmentIndex) {
+  const daylightMs = sunset.getTime() - sunrise.getTime();
+  const segmentMs = daylightMs / 8;
+  const start = new Date(sunrise.getTime() + (segmentIndex - 1) * segmentMs);
+  const end = new Date(sunrise.getTime() + segmentIndex * segmentMs);
+  return { start, end };
+}
+
+function formatTimeRange(start, end, timezone) {
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: timezone };
+  return `${start.toLocaleTimeString('en-IN', opts)} - ${end.toLocaleTimeString('en-IN', opts)}`;
+}
+
+/**
+ * Full daily Panchang for a given calendar date, computed the traditional
+ * way — tithi/nakshatra/yoga/karana as they stand at sunrise (Indian
+ * panchang convention), not midnight or noon.
+ *
+ * @param {Object} params
+ * @param {string} params.date - "YYYY-MM-DD"
+ * @param {number} [params.lat=28.6139] - defaults to New Delhi
+ * @param {number} [params.lng=77.2090]
+ * @param {string} [params.timezone='Asia/Kolkata']
+ */
+function calculateDailyPanchang({ date, lat = 28.6139, lng = 77.2090, timezone = 'Asia/Kolkata' }) {
+  const [y, m, d] = date.split('-').map(Number);
+  const dateUTCNoon = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)); // rough anchor for sun-time calc
+
+  const { sunrise, sunset } = calculateSunTimes(dateUTCNoon, lat, lng);
+
+  const jde = dateToJde(sunrise);
+  const ayanamsa = lahiriAyanamsa(jde);
+
+  const tropicalSun = norm360(solar.apparentVSOP87(earth, jde).lon * R2D);
+  const tropicalMoon = norm360(moonposition.position(jde).lon * R2D);
+
+  const tropicalPlanets = {
+    Sun: tropicalSun,
+    Moon: tropicalMoon,
+    Mercury: geocentricLongitude(mercury, jde),
+    Venus: geocentricLongitude(venus, jde),
+    Mars: geocentricLongitude(mars, jde),
+    Jupiter: geocentricLongitude(jupiter, jde),
+    Saturn: geocentricLongitude(saturn, jde),
+    Rahu: norm360(moonposition.node(jde) * R2D)
+  };
+  tropicalPlanets.Ketu = norm360(tropicalPlanets.Rahu + 180);
+
+  const planets = {};
+  Object.keys(tropicalPlanets).forEach((body) => {
+    const sid = norm360(tropicalPlanets[body] - ayanamsa);
+    planets[body] = { longitude: Number(sid.toFixed(4)), rashi: rashiOf(sid) };
+  });
+
+  const dayOfWeek = sunrise.getUTCDay(); // 0=Sunday
+  const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const rahuKaal = segmentToTimeRange(sunrise, sunset, RAHU_KAAL_SEGMENT[dayOfWeek]);
+  const yamaganda = segmentToTimeRange(sunrise, sunset, YAMAGANDA_SEGMENT[dayOfWeek]);
+  const gulikaKaal = segmentToTimeRange(sunrise, sunset, GULIKA_KAAL_SEGMENT[dayOfWeek]);
+
+  const muhurtaMs = (sunset.getTime() - sunrise.getTime()) / 15;
+  const abhijitStart = new Date(sunrise.getTime() + 7 * muhurtaMs);
+  const abhijitEnd = new Date(sunrise.getTime() + 8 * muhurtaMs);
+  const brahmaStart = new Date(sunrise.getTime() - 96 * 60000);
+  const brahmaEnd = new Date(sunrise.getTime() - 48 * 60000);
+
+  return {
+    date,
+    var: weekdayNames[dayOfWeek],
+    ayanamsa: Number(ayanamsa.toFixed(4)),
+    sunrise: sunrise.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: timezone }),
+    sunset: sunset.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: timezone }),
+    panchang: {
+      tithi: tithiOf(tropicalMoon, tropicalSun),
+      nakshatra: nakshatraOf(planets.Moon.longitude),
+      yoga: yogaOf(planets.Moon.longitude, planets.Sun.longitude),
+      karana: karanaOf(tropicalMoon, tropicalSun)
+    },
+    planets,
+    auspicious: [
+      { label: 'Abhijit Muhurta', time: formatTimeRange(abhijitStart, abhijitEnd, timezone) },
+      { label: 'Brahma Muhurta', time: formatTimeRange(brahmaStart, brahmaEnd, timezone) }
+    ],
+    inauspicious: [
+      { label: 'Rahu Kaal', time: formatTimeRange(rahuKaal.start, rahuKaal.end, timezone) },
+      { label: 'Yamaganda', time: formatTimeRange(yamaganda.start, yamaganda.end, timezone) },
+      { label: 'Gulika Kaal', time: formatTimeRange(gulikaKaal.start, gulikaKaal.end, timezone) }
+    ]
+  };
+}
+
+// ---- Lightweight helpers for calculators that only have a DOB (no birth
+// time/place collected) — e.g. numerology, moon-sign, compatibility pages.
+// These use a noon-UTC reference time, which is accurate for Rashi/Nakshatra
+// on the vast majority of days (Moon moves ~13°/day, so it only risks being
+// wrong right around a boundary-crossing day) — far more accurate than a
+// calendar-date hash, but flagged here as an approximation since no birth
+// time means we can't pin down the Moon's position as precisely as the full
+// Kundli engine does.
+function getMoonSignAndNakshatra(dob) {
+  const date = new Date(dob + 'T12:00:00Z');
+  const jde = dateToJde(date);
+  const ayanamsa = lahiriAyanamsa(jde);
+  const tropicalMoon = norm360(moonposition.position(jde).lon * R2D);
+  const siderealMoon = norm360(tropicalMoon - ayanamsa);
+  return {
+    rashi: rashiOf(siderealMoon),
+    rashiIndex: Math.floor(siderealMoon / 30),
+    nakshatra: nakshatraOf(siderealMoon)
+  };
+}
+
+const GANA_MAP = {
+  Deva: ['Ashwini', 'Mrigashira', 'Punarvasu', 'Pushya', 'Hasta', 'Swati', 'Anuradha', 'Shravana', 'Revati'],
+  Manushya: ['Bharani', 'Rohini', 'Ardra', 'Purva Phalguni', 'Uttara Phalguni', 'Purva Ashadha', 'Uttara Ashadha', 'Purva Bhadrapada', 'Uttara Bhadrapada'],
+  Rakshasa: ['Krittika', 'Ashlesha', 'Magha', 'Chitra', 'Vishakha', 'Jyeshtha', 'Mula', 'Dhanishta', 'Shatabhisha']
+};
+
+function ganaOf(nakshatraName) {
+  for (const gana of Object.keys(GANA_MAP)) {
+    if (GANA_MAP[gana].includes(nakshatraName)) return gana;
+  }
+  return 'Manushya';
+}
+
+/**
+ * Partial Ashtakoot compatibility — Bhakoot (rashi distance, 7 pts) + Gana
+ * (nature/temperament, 6 pts) = 13 points max. This is NOT the full
+ * traditional 8-factor/36-point Ashtakoot Guna Milan (which needs birth
+ * time+place for Nadi, Graha Maitri, Yoni, Tara, Varna, Vasya too) — it's a
+ * smaller, honest subset that's still genuinely computed from real Moon
+ * positions rather than a hash of the two names/dates.
+ */
+function calculateCompatibility(dob1, dob2) {
+  const p1 = getMoonSignAndNakshatra(dob1);
+  const p2 = getMoonSignAndNakshatra(dob2);
+
+  const distance = ((p2.rashiIndex - p1.rashiIndex + 12) % 12) + 1;
+  const badBhakootDistances = [2, 12, 5, 9, 6, 8];
+  const bhakootPoints = badBhakootDistances.includes(distance) ? 0 : 7;
+
+  const gana1 = ganaOf(p1.nakshatra.name);
+  const gana2 = ganaOf(p2.nakshatra.name);
+  let ganaPoints;
+  if (gana1 === gana2) ganaPoints = 6;
+  else if ([gana1, gana2].includes('Rakshasa')) ganaPoints = 0;
+  else ganaPoints = 5;
+
+  const totalPoints = bhakootPoints + ganaPoints;
+  const maxPoints = 13;
+  const percentageScore = Math.round((totalPoints / maxPoints) * 100);
+
+  return {
+    person1: { rashi: p1.rashi, nakshatra: p1.nakshatra.name, gana: gana1 },
+    person2: { rashi: p2.rashi, nakshatra: p2.nakshatra.name, gana: gana2 },
+    bhakootPoints,
+    bhakootMax: 7,
+    ganaPoints,
+    ganaMax: 6,
+    totalPoints,
+    maxPoints,
+    percentageScore,
+    note: 'Based on Moon sign (Bhakoot) and Nakshatra temperament (Gana) — 2 of the 8 traditional Ashtakoot factors. Full 36-point matching also requires birth time and place for the remaining factors (Nadi, Graha Maitri, Yoni, Tara, Varna, Vasya).'
+  };
+}
+
+// ---- Moon phase (for the standalone "Moon Phase" calculator) ----
+
+const MOON_PHASES = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent'];
+
+function getMoonPhaseForDate(dateStr) {
+  const date = new Date(dateStr + 'T12:00:00Z');
+  const jde = dateToJde(date);
+  const tropicalSun = norm360(solar.apparentVSOP87(earth, jde).lon * R2D);
+  const tropicalMoon = norm360(moonposition.position(jde).lon * R2D);
+  const tithi = tithiOf(tropicalMoon, tropicalSun);
+  const phaseIndex = Math.floor(tithi.index / 3.75);
+  return { phase: MOON_PHASES[phaseIndex], tithi: tithi.label };
+}
+
+module.exports = {
+  calculateVedicChart,
+  calculateDailyPanchang,
+  getMoonSignAndNakshatra,
+  calculateCompatibility,
+  getMoonPhaseForDate
+};

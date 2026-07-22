@@ -1,4 +1,5 @@
 const Groq = require('groq-sdk');
+const { getMoonSignAndNakshatra, calculateCompatibility, getMoonPhaseForDate } = require('../services/vedicChartEngine');
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -34,17 +35,7 @@ function getLifePathNumber(dob) {
 }
 
 function getNakshatra(dob) {
-  const nakshatras = [
-    'Ashwini','Bharani','Krittika','Rohini','Mrigashira',
-    'Ardra','Punarvasu','Pushya','Ashlesha','Magha',
-    'Purva Phalguni','Uttara Phalguni','Hasta','Chitra','Swati',
-    'Vishakha','Anuradha','Jyeshtha','Mula','Purva Ashadha',
-    'Uttara Ashadha','Shravana','Dhanishtha','Shatabhisha',
-    'Purva Bhadrapada','Uttara Bhadrapada','Revati'
-  ];
-  const date  = new Date(dob);
-  const index = (date.getDate() + date.getMonth() * 2) % 27;
-  return nakshatras[index];
+  return getMoonSignAndNakshatra(dob).nakshatra.name;
 }
 
 function getLoveScore(name1, name2) {
@@ -55,10 +46,11 @@ function getLoveScore(name1, name2) {
 }
 
 function getCompatibilityScore(dob1, dob2) {
-  const d1 = new Date(dob1);
-  const d2 = new Date(dob2);
-  const diff = Math.abs(d1.getTime() - d2.getTime());
-  return (diff % 41) + 60;
+  return calculateCompatibility(dob1, dob2).percentageScore;
+}
+
+function getCompatibilityDetails(dob1, dob2) {
+  return calculateCompatibility(dob1, dob2);
 }
 
 // ── AI Calculator ────────────────────────────────────────────────────────────
@@ -71,6 +63,8 @@ const calculate = async (type, data) => {
   const nakshatra  = data.dob   ? getNakshatra(data.dob)                          : null;
   const loveScore  = data.name && data.name2 ? getLoveScore(data.name, data.name2): null;
   const compatScore= data.dob1 && data.dob2 ? getCompatibilityScore(data.dob1, data.dob2) : null;
+  const compatDetails = data.dob1 && data.dob2 ? getCompatibilityDetails(data.dob1, data.dob2) : null;
+  const moonPhaseData = data.date || type === 'moon-phase' ? getMoonPhaseForDate(data.date || new Date().toISOString().split('T')[0]) : null;
 
   const prompts = {
     'numerology': `You are a Vedic numerologist. Name: "${data.name}", DOB: ${data.dob}.
@@ -187,41 +181,40 @@ Return ONLY this JSON:
   "analysis": "3 sentences about Mangal Dosha for ${sign?.en} and remedies"
 }`,
 
-    'moon-phase': `You are a Vedic astrologer. Calculate moon phase for: ${data.date || new Date().toISOString().split('T')[0]}.
+    'moon-phase': `You are a Vedic astrologer. Real data for ${data.date || new Date().toISOString().split('T')[0]}: Moon phase is ${moonPhaseData.phase}, Tithi is ${moonPhaseData.tithi}.
 Return ONLY this JSON:
 {
-  "mainResult": "Moon phase name",
+  "mainResult": "${moonPhaseData.phase}",
   "mainLabel": "MOON PHASE",
   "details": [
-    {"label": "Phase",        "value": "exact phase name"},
-    {"label": "Illumination", "value": "approximate percentage"},
-    {"label": "Tithi",        "value": "Vedic tithi name"},
-    {"label": "Energy",       "value": "type of cosmic energy"},
-    {"label": "Best For",     "value": "3 activities suited"},
-    {"label": "Avoid",        "value": "2 activities to avoid"}
+    {"label": "Phase",        "value": "${moonPhaseData.phase}"},
+    {"label": "Tithi",        "value": "${moonPhaseData.tithi}"},
+    {"label": "Energy",       "value": "type of cosmic energy for ${moonPhaseData.phase}"},
+    {"label": "Best For",     "value": "3 activities suited to ${moonPhaseData.phase}"},
+    {"label": "Avoid",        "value": "2 activities to avoid during ${moonPhaseData.phase}"}
   ],
-  "analysis": "3 sentences about spiritual significance of this moon phase"
+  "analysis": "3 sentences about the spiritual significance of ${moonPhaseData.phase} (${moonPhaseData.tithi})"
 }`,
 
-    'compatibility-kundli': `You are a Vedic astrologer. Calculate Ashtakoota Kundli matching between:
-Person 1: ${data.name1}, DOB: ${data.dob1}, Sign: ${sign1?.en} (${sign1?.sa}), Place: ${data.pob1}
-Person 2: ${data.name2}, DOB: ${data.dob2}, Sign: ${sign2?.en} (${sign2?.sa}), Place: ${data.pob2}
-Compatibility score: ${compatScore}/36 gunas (use this as base).
+    'compatibility-kundli': `You are a Vedic astrologer. Real computed compatibility data for:
+Person 1: ${data.name1}, Moon Sign: ${compatDetails?.person1.rashi}, Nakshatra: ${compatDetails?.person1.nakshatra} (${compatDetails?.person1.gana} Gana)
+Person 2: ${data.name2}, Moon Sign: ${compatDetails?.person2.rashi}, Nakshatra: ${compatDetails?.person2.nakshatra} (${compatDetails?.person2.gana} Gana)
+
+Bhakoot (Moon sign compatibility): ${compatDetails?.bhakootPoints}/${compatDetails?.bhakootMax}
+Gana (temperament compatibility): ${compatDetails?.ganaPoints}/${compatDetails?.ganaMax}
+Total (partial Ashtakoot): ${compatDetails?.totalPoints}/${compatDetails?.maxPoints} (${compatScore}%)
+
+Using ONLY this real data (do not invent scores for factors not listed), write your response.
 Return ONLY this JSON:
 {
-  "mainResult": "${compatScore}/36",
-  "mainLabel": "ASHTAKOOTA SCORE",
+  "mainResult": "${compatDetails?.totalPoints}/${compatDetails?.maxPoints}",
+  "mainLabel": "COMPATIBILITY SCORE (PARTIAL ASHTAKOOTA)",
   "details": [
-    {"label": "Varna",       "value": "score/1 - meaning"},
-    {"label": "Vasya",       "value": "score/2 - meaning"},
-    {"label": "Tara",        "value": "score/3 - meaning"},
-    {"label": "Yoni",        "value": "score/4 - meaning"},
-    {"label": "Graha Maitri","value": "score/5 - meaning"},
-    {"label": "Gana",        "value": "score/6 - meaning"},
-    {"label": "Bhakoot",     "value": "score/7 - meaning"},
-    {"label": "Nadi",        "value": "score/8 - meaning"}
+    {"label": "Bhakoot (Moon Sign)", "value": "${compatDetails?.bhakootPoints}/${compatDetails?.bhakootMax} - brief real meaning based on the actual signs given"},
+    {"label": "Gana (Temperament)",  "value": "${compatDetails?.ganaPoints}/${compatDetails?.ganaMax} - brief real meaning based on the actual ganas given"},
+    {"label": "Note", "value": "Full 36-point Ashtakoota also requires birth time and place for Varna, Vasya, Tara, Yoni, Graha Maitri, and Nadi"}
   ],
-  "analysis": "3 sentences about this Kundli match for ${data.name1} and ${data.name2} — is it good for marriage? Any doshas? Overall verdict."
+  "analysis": "3 sentences about ${data.name1} and ${data.name2}'s compatibility based ONLY on the real Bhakoot and Gana data given above — do not invent additional astrological facts"
 }`,
 
     'compatibility-love': `You are a Vedic astrologer. Calculate love compatibility between:

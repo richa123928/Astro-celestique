@@ -9,6 +9,11 @@ const MONTHS = [
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const PLANET_ICONS = {
+  Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
+  Jupiter: '♃', Saturn: '♄', Rahu: '☊', Ketu: '☋'
+};
+
 export default function Panchang() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [panchang,     setPanchang]     = useState(null);
@@ -275,6 +280,7 @@ export default function Panchang() {
                     display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
                     gap: 12, marginTop: 16
                   }}>
+
                     {(panchang.planets || []).map((p, i) => (
                       <div key={i} style={{
                         background: 'var(--navy-mid)',
@@ -282,7 +288,7 @@ export default function Panchang() {
                         borderRadius: 12, padding: '12px',
                         display: 'flex', alignItems: 'center', gap: 10
                       }}>
-                        <span style={{ fontSize: 20 }}>{p.icon}</span>
+                        <span style={{ fontSize: 20 }}>{PLANET_ICONS[p.name] || '✦'}</span>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</div>
                           <div style={{ fontSize: 11, color: 'var(--gold)' }}>{p.position}</div>

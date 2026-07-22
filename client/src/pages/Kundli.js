@@ -6,7 +6,7 @@ import PlaceAutocomplete from '../components/PlaceAutocomplete';
 const RASHI_LIST = [
   'Mesha (Aries)', 'Vrishabha (Taurus)', 'Mithuna (Gemini)',
   'Karka (Cancer)', 'Simha (Leo)', 'Kanya (Virgo)',
-  'Tula (Libra)', 'Vrishchika (Scorpio)', 'Dhanu (Sagittarius)',
+  'Tula (Libra)', 'Vrischika (Scorpio)', 'Dhanu (Sagittarius)',
   'Makara (Capricorn)', 'Kumbha (Aquarius)', 'Meena (Pisces)'
 ];
 
@@ -22,6 +22,11 @@ const PLANETS = [
   { name: 'Ketu',    symbol: '☋', color: '#8b5cf6' },
 ];
 
+const PLANET_ABBR = {
+  Sun: 'Su', Moon: 'Mo', Mercury: 'Me', Venus: 'Ve', Mars: 'Ma',
+  Jupiter: 'Ju', Saturn: 'Sa', Rahu: 'Ra', Ketu: 'Ke'
+};
+
 export default function Kundli() {
   const [step,    setStep]    = useState(1); // 1=form, 2=result
   const [loading, setLoading] = useState(false);
@@ -35,6 +40,7 @@ export default function Kundli() {
     setLoading(true);
     try {
       const { data } = await axios.post('/api/kundli/generate', form);
+      // const { data } = await axios.post('http://localhost:5000/api/kundli/generate', form);
       setKundli(data);
       setStep(2);
     } catch (err) {
@@ -234,40 +240,58 @@ export default function Kundli() {
                 border: '1px solid var(--border-light)',
                 borderRadius: 20, padding: 28
               }}>
-                <span className="section-label">NORTH INDIAN CHART</span>
-                <div style={{
-                  width: '100%', aspectRatio: '1',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8, marginTop: 16,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                  gridTemplateRows: '1fr 1fr 1fr 1fr',
-                  position: 'relative',
-                  background: 'var(--navy-mid)',
-                }}>
-                  {/* North Indian chart layout — rotates based on real Ascendant */}
-                  {(() => {
-                    const houses = getChartHouses(kundli);
+                <span className="section-label">LAGNA & NAVAMSA CHARTS</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+                  {[false, true].map((useNavamsa, chartIdx) => {
+                    const houses = getChartHouses(kundli, useNavamsa);
                     if (!houses) return null;
-                    return houses.map((house, i) => (
-                      <div key={i} style={{
-                        border: '1px solid var(--border-light)',
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center',
-                        padding: 4, fontSize: 10,
-                        color: 'var(--text-muted)',
-                        gridColumn: getGridCol(i),
-                        gridRow: getGridRow(i),
-                      }}>
-                        <span style={{ color: 'var(--gold)', fontSize: 12 }}>
-                          {RASHI_LIST[house.rashiIndex].split('(')[0]}
-                        </span>
-                        <span style={{ fontSize: 9, textAlign: 'center', marginTop: 2 }}>
-                          {house.planets.join(', ') || '—'}
-                        </span>
+                    return (
+                      <div key={chartIdx}>
+                        <p style={{ fontSize: 12, color: 'var(--gold)', textAlign: 'center', marginBottom: 8 }}>
+                          {useNavamsa ? 'Navamsa (D9)' : 'Lagna (D1)'}
+                        </p>
+                        <div style={{
+                          width: '100%', aspectRatio: '1',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                          gridTemplateRows: '1fr 1fr 1fr 1fr',
+                          background: 'var(--navy-mid)',
+                        }}>
+                          {houses.map((house, i) => (
+                            <div key={i} style={{
+                              border: '1px solid var(--border-light)',
+                              display: 'flex', flexDirection: 'column',
+                              alignItems: 'center', justifyContent: 'center',
+                              padding: 3, fontSize: 9,
+                              color: 'var(--text-muted)',
+                              gridColumn: getGridCol(i),
+                              gridRow: getGridRow(i),
+                              position: 'relative'
+                            }}>
+                              <span style={{ color: 'var(--text-dim)', fontSize: 9, position: 'absolute', top: 2, left: 4 }}>
+                                {house.houseNumber}
+                              </span>
+                              <span style={{ color: 'var(--gold)', fontSize: 10 }}>
+                                {RASHI_LIST[house.rashiIndex].split('(')[0].trim()}
+                              </span>
+                              <span style={{ fontSize: 8, textAlign: 'center', marginTop: 2, lineHeight: 1.4 }}>
+                                {house.planets.map((p, pi) => (
+                                  <span key={pi}>
+                                    {PLANET_ABBR[p.name] || p.name}
+                                    {p.degree ? <sup style={{ fontSize: 6 }}>{p.degree}</sup> : ''}
+                                    {p.retrograde ? '^' : ''}
+                                    {pi < house.planets.length - 1 ? ', ' : ''}
+                                  </span>
+                                ))}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ));
-                  })()}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -335,9 +359,13 @@ export default function Kundli() {
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                         {planet.name}
+                        {kundli.planets?.[planet.name]?.retrograde ? (
+                          <span style={{ color: '#f87171', fontSize: 11, marginLeft: 4 }}>(R)</span>
+                        ) : ''}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         {kundli.planets?.[planet.name]?.rashi?.split('(')[0] || '—'}
+                        {kundli.planets?.[planet.name]?.degree?.formatted ? ` ${kundli.planets[planet.name].degree.formatted}` : ''}
                       </div>
                     </div>
                   </div>
@@ -420,10 +448,13 @@ function getGridRow(i) {
 // sits in, based on its rashi relative to the Ascendant's rashi. North
 // Indian charts rotate their rashi labels around a fixed house layout —
 // house 1 always shows the Ascendant's sign, then signs follow in order.
-function getChartHouses(kundli) {
+// Pass useNavamsa=true to build the D9 (Navamsa) chart instead of D1.
+function getChartHouses(kundli, useNavamsa = false) {
   if (!kundli?.ascendant || !kundli?.planets) return null;
 
-  const ascendantIndex = Math.floor(kundli.ascendant.longitude / 30);
+  const ascendantIndex = useNavamsa
+    ? RASHI_LIST.findIndex(r => r === kundli.ascendant.navamsaRashi)
+    : Math.floor(kundli.ascendant.longitude / 30);
 
   const houses = Array.from({ length: 12 }, (_, i) => ({
     houseNumber: i + 1,
@@ -432,9 +463,15 @@ function getChartHouses(kundli) {
   }));
 
   Object.entries(kundli.planets).forEach(([name, data]) => {
-    const planetRashiIndex = Math.floor(data.longitude / 30);
+    const planetRashiIndex = useNavamsa
+      ? RASHI_LIST.findIndex(r => r === data.navamsaRashi)
+      : Math.floor(data.longitude / 30);
     const houseIndex = (planetRashiIndex - ascendantIndex + 12) % 12;
-    houses[houseIndex].planets.push(name);
+    houses[houseIndex].planets.push({
+      name,
+      degree: useNavamsa ? null : data.degree?.formatted,
+      retrograde: data.retrograde
+    });
   });
 
   return houses;
