@@ -109,20 +109,23 @@ export default function Consultations() {
   const [liveStatus, setLiveStatus] = useState({});
 
   useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const { data } = await axios.get('/api/astrologers/status');
-        const statusMap = {};
-        ASTROLOGERS.forEach(a => {
-          statusMap[a.id] = data.onlineAstrologers.includes(a.id.toString()) ? 'online' : 'offline';
-        });
-        setLiveStatus(statusMap);
-      } catch (err) {}
-    };
-    checkStatus();
-    const interval = setInterval(checkStatus, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const checkStatus = async () => {
+    try {
+      const { data } = await axios.get('/api/astrologers/status');
+      const statusMap = {};
+      ASTROLOGERS.forEach(a => {
+        const id = a.id.toString();
+        if (data.busyAstrologers?.includes(id)) statusMap[a.id] = 'busy';
+        else if (data.onlineAstrologers.includes(id)) statusMap[a.id] = 'online';
+        else statusMap[a.id] = 'offline';
+      });
+      setLiveStatus(statusMap);
+    } catch (err) {}
+  };
+  checkStatus();
+  const interval = setInterval(checkStatus, 5000);
+  return () => clearInterval(interval);
+}, []);
 
   const handleConsult = (astrologer, consultMode, status) => {
     if (!isAuthenticated) {

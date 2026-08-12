@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const errorHandler = require('./middleware/error');
+const astrologerStatusStore = require('./utils/astrologerStatusStore');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -39,28 +40,23 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/astrologers', require('./routes/astrologers'));
-app.use('/api/horoscope',   require('./routes/horoscope'));
-app.use('/api/kundli',      require('./routes/kundli'));
-app.use('/api/calculators', require('./routes/calculators'));
-app.use('/api/puja',        require('./routes/puja'));
-app.use('/api/remedies',    require('./routes/remedies'));
-app.use('/api/chat',        require('./routes/chat'));
-app.use('/api/payments',    require('./routes/payments'));
-app.use('/api/admin',       require('./routes/admin'));
+app.use('/api/auth',         require('./routes/auth'));
+app.use('/api/astrologers',  require('./routes/astrologers'));
+app.use('/api/horoscope',    require('./routes/horoscope'));
+app.use('/api/kundli',       require('./routes/kundli'));
+app.use('/api/calculators',  require('./routes/calculators'));
+app.use('/api/puja',         require('./routes/puja'));
+app.use('/api/remedies',     require('./routes/remedies'));
+app.use('/api/chat',         require('./routes/chat'));
+app.use('/api/payments',     require('./routes/payments'));
+app.use('/api/admin',        require('./routes/admin'));
 app.use('/api/consultation', require('./routes/consultation'));
-app.use('/api/panchang',    require('./routes/panchang'));
-app.use('/api/places', require('./routes/places'));
-
+app.use('/api/panchang',     require('./routes/panchang'));
+app.use('/api/places',       require('./routes/places'));
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Astrology API is running' });
-});
-
-app.get('/api/astrologers/status', (req, res) => {
-  res.json({ onlineAstrologers: Object.keys(onlineAstrologers) });
 });
 
 // Track online astrologers: { astrologerId: socketId }
@@ -74,6 +70,8 @@ io.on('connection', (socket) => {
   // Astrologer comes online
   socket.on('astrologer_online', ({ astrologerId, astrologerName }) => {
     onlineAstrologers[astrologerId] = socket.id;
+    astrologerStatusStore.setOnline(astrologerId.toString(), socket.id);
+    io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
     console.log(`Astrologer ${astrologerName} is online. Socket: ${socket.id}`);
     socket.astrologerId = astrologerId;
   });
@@ -86,8 +84,8 @@ io.on('connection', (socket) => {
       return;
     }
     const sessionId = `session_${userId}_${astrologerId}_${Date.now()}`;
-    socket.sessionId  = sessionId;
-    socket.userId     = userId;
+    socket.sessionId    = sessionId;
+    socket.userId       = userId;
     socket.userLanguage = userLanguage || 'english';
 
     // Notify astrologer of incoming request
@@ -113,6 +111,8 @@ io.on('connection', (socket) => {
       startTime: new Date(),
       isActive:  true
     };
+    astrologerStatusStore.setBusy(astrologerId.toString());
+    io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
 
     // Join both to same room
     socket.join(sessionId);
@@ -131,52 +131,45 @@ io.on('connection', (socket) => {
   });
 
   // Send message with translation
-  socket.on('send_message', async ({ sessionId, message, senderType, senderName, userLanguage }) => {
-    const { translateMessage, detectLanguage } = require('./utils/translate');
+  socket.on('send_message', async ({ sessionId, message, senderType, senderName, userLanguage, astrologerLanguage }) => {
+    const { translateMessage } = require('./utils/translate');
     try {
-      const detectedLang = detectLanguage(message);
-      let translatedMessage = message;
-      let showOriginal = false;
+      const userLang = userLanguage || 'English';
+      const astroLang = astrologerLanguage || 'Hindi';
+      const targetLanguage = senderType === 'user' ? astroLang : userLang;
 
-      if (senderType === 'user' && detectedLang === 'english' && userLanguage === 'english') {
-        translatedMessage = await translateMessage(message, 'hindi');
-        showOriginal = true;
-      } else if (senderType === 'user' && detectedLang === 'hindi') {
-        translatedMessage = await translateMessage(message, 'english');
-        showOriginal = true;
-      } else if (senderType === 'astrologer') {
-        if (detectedLang === 'hindi') {
-          translatedMessage = await translateMessage(message, 'english');
-          showOriginal = true;
-        } else if (detectedLang === 'english') {
-          translatedMessage = await translateMessage(message, 'hindi');
-          showOriginal = true;
-        }
-      }
+      console.log('🔍 DEBUG send_message:', { senderType, message, userLanguage, astrologerLanguage, targetLanguage });
+
+      const translatedMessage = await translateMessage(message, targetLanguage);
+
+      console.log('🔍 DEBUG translation result:', { original: message, targetLanguage, translatedMessage });
 
       const timestamp = new Date();
 
-      // Send to sender — show their own message
+      // Sender sees their own original message, with the translation shown
+      // as a small reference underneath (so they can confirm it read correctly)
       socket.emit('receive_message', {
         sessionId, senderType, senderName,
         message,
         displayMessage: message,
-        translatedMessage: showOriginal ? translatedMessage : null,
+        translatedMessage,
         isMine: true,
         timestamp
       });
 
-      // Send to receiver — show translated message
+      // Receiver sees the translated message as the main text, with the
+      // sender's original shown as a small reference underneath
       socket.to(sessionId).emit('receive_message', {
         sessionId, senderType, senderName,
         message: translatedMessage,
         displayMessage: translatedMessage,
-        translatedMessage: showOriginal ? message : null,
+        translatedMessage: message,
         isMine: false,
         timestamp
       });
 
     } catch (err) {
+      console.error('🔍 DEBUG send_message error:', err.message);
       io.to(sessionId).emit('receive_message', {
         sessionId, senderType, senderName,
         message, displayMessage: message,
@@ -196,6 +189,8 @@ io.on('connection', (socket) => {
     if (activeSessions[sessionId]) {
       activeSessions[sessionId].isActive = false;
       activeSessions[sessionId].endTime  = new Date();
+      astrologerStatusStore.setAvailable(activeSessions[sessionId].astrologerId.toString());
+      io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
     }
     io.to(sessionId).emit('session_ended', { sessionId });
     socket.leave(sessionId);
@@ -205,12 +200,14 @@ io.on('connection', (socket) => {
     // Remove astrologer from online list
     if (socket.astrologerId) {
       delete onlineAstrologers[socket.astrologerId];
+      astrologerStatusStore.removeBySocketId(socket.id);
+      io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
       console.log(`Astrologer ${socket.astrologerId} went offline`);
     }
     console.log('Socket disconnected:', socket.id);
   });
 });
-     
+
 app.use(errorHandler);
 
 // Connect to MongoDB and start server
