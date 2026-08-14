@@ -158,13 +158,14 @@ const addFunds = async () => {
     const msgText = input.trim();
     setInput('');
 
-    socket.emit('send_message', {
-      sessionId,
-      message:      msgText,
-      senderType:   'user',
-      senderName:   user?.name,
-      userLanguage
-    });
+   socket.emit('send_message', {
+  sessionId,
+  message:      msgText,
+  senderType:   'user',
+  senderName:   user?.name,
+  userLanguage,
+  recipientName: astrologer.name
+});
     socket.emit('typing', { sessionId, senderType: 'user' });
   };
 

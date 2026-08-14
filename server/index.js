@@ -131,16 +131,14 @@ io.on('connection', (socket) => {
   });
 
   // Send message with translation
-  socket.on('send_message', async ({ sessionId, message, senderType, senderName, userLanguage, astrologerLanguage }) => {
-    const { translateMessage } = require('./utils/translate');
-    try {
-      const userLang = userLanguage || 'English';
-      const astroLang = astrologerLanguage || 'Hindi';
-      const targetLanguage = senderType === 'user' ? astroLang : userLang;
+  socket.on('send_message', async ({ sessionId, message, senderType, senderName, userLanguage, astrologerLanguage, recipientName }) => {
+  const { translateMessage } = require('./utils/translate');
+  try {
+    const userLang = userLanguage || 'English';
+    const astroLang = astrologerLanguage || 'Hindi';
+    const targetLanguage = senderType === 'user' ? astroLang : userLang;
 
-      console.log('🔍 DEBUG send_message:', { senderType, message, userLanguage, astrologerLanguage, targetLanguage });
-
-      const translatedMessage = await translateMessage(message, targetLanguage);
+    const translatedMessage = await translateMessage(message, targetLanguage, recipientName);
 
       console.log('🔍 DEBUG translation result:', { original: message, targetLanguage, translatedMessage });
 

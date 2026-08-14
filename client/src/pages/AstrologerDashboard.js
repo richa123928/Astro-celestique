@@ -137,12 +137,13 @@ export default function AstrologerDashboard() {
     setInput('');
 
     socket.emit('send_message', {
-      sessionId,
-      message:    msgText,
-      senderType: 'astrologer',
-      senderName: user?.name,
-      userLanguage: incomingReq?.userLanguage || 'english'
-    });
+  sessionId,
+  message:    msgText,
+  senderType: 'astrologer',
+  senderName: user?.name,
+  userLanguage: incomingReq?.userLanguage || 'english',
+  recipientName: incomingReq?.userName
+});
 
     socket.emit('typing', { sessionId, senderType: 'astrologer' });
   };

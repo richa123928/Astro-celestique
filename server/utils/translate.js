@@ -4,10 +4,6 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// Common Hindi/Hinglish astrology-chat words and greetings that LLMs tend
-// to leave untranslated (treating them as "proper nouns" or culturally
-// fixed terms). Checked BEFORE calling the AI, so these are guaranteed
-// correct regardless of model behavior. Keys are lowercase for matching.
 const HINDI_TO_ENGLISH_TERMS = {
   'namaste': 'hello',
   'namaskar': 'hello',
@@ -25,20 +21,12 @@ const HINDI_TO_ENGLISH_TERMS = {
   'haan': 'yes',
   'nahi': 'no',
   'nahin': 'no',
-  'ji': '',
-  'ji haan': 'yes',
 };
 
 function containsDevanagari(text) {
   return /[\u0900-\u097F]/.test(text);
 }
 
-/**
- * Deterministic pre-pass: replace known short Hindi/Hinglish terms with
- * English equivalents by whole-word matching (case-insensitive), whether
- * they appear in Devanagari or in Latin-script Hinglish. Runs BEFORE the
- * AI translator so common greetings are guaranteed correct.
- */
 function applyKnownTermsToEnglish(text) {
   let result = text;
   Object.keys(HINDI_TO_ENGLISH_TERMS).forEach((term) => {
@@ -49,9 +37,13 @@ function applyKnownTermsToEnglish(text) {
   return result.replace(/\s+/g, ' ').trim();
 }
 
-async function callTranslator(text, targetLanguage, strict = false) {
+async function callTranslator(text, targetLanguage, senderName, strict = false) {
   const strictNote = strict
-    ? `\n\nCRITICAL: Your previous attempt failed to follow instructions. You MUST write your entire response in ${targetLanguage} using ${targetLanguage === 'English' ? 'the Latin/Roman alphabet only, absolutely no Devanagari script' : 'proper script for that language'}. Do not preserve any words in the original language, script, or transliteration — fully translate every word, including greetings.`
+    ? `\n\nCRITICAL: Your previous attempt failed to follow instructions. You MUST write your entire response in ${targetLanguage} using ${targetLanguage === 'English' ? 'the Latin/Roman alphabet only, absolutely no Devanagari script' : 'proper script for that language'}. Fully translate every word, including greetings.`
+    : '';
+
+  const nameNote = senderName
+    ? ` The person's name in this conversation is "${senderName}" — if it appears in the message, keep it EXACTLY as "${senderName}", never translate it as a common word even if it resembles one in another language (for example, a name like "Tia" must stay "Tia", never become a translated word like "aunt").`
     : '';
 
   const completion = await groq.chat.completions.create({
@@ -59,7 +51,14 @@ async function callTranslator(text, targetLanguage, strict = false) {
     messages: [
       {
         role: 'system',
-        content: `You are a translator for a live astrology consultation chat. Translate the user's message into ${targetLanguage}. Preserve tone, warmth, and meaning. Fully translate every word — do not leave any word in the original language or script, even common greetings like "namaste" (translate as "hello"). Respond with ONLY the translated text — no quotes, no explanation, no preamble.${strictNote}`
+        content: `You are a translator for a live astrology consultation chat between a customer and an astrologer. Translate the message into ${targetLanguage}.
+
+Rules:
+- Use simple, natural, everyday spoken language — the way a real person actually talks, NOT formal, archaic, or literary phrasing.
+- Never translate proper names (people's names, titles used as names) — keep any person's name exactly as written in the original message.${nameNote}
+- Fully translate every other word — don't leave common words or greetings (like "namaste") untranslated.
+- Preserve the warmth and casual tone of the original.
+- Respond with ONLY the translated text — no quotes, no explanation, no preamble.${strictNote}`
       },
       { role: 'user', content: text }
     ],
@@ -70,20 +69,17 @@ async function callTranslator(text, targetLanguage, strict = false) {
   return completion.choices[0].message.content.trim();
 }
 
-async function translateMessage(text, targetLanguage) {
+async function translateMessage(text, targetLanguage, senderName = null) {
   if (!text || !text.trim()) return text;
 
   try {
-    let result = await callTranslator(text, targetLanguage);
+    let result = await callTranslator(text, targetLanguage, senderName);
 
     const targetIsEnglish = targetLanguage.toLowerCase() === 'english';
     if (targetIsEnglish && containsDevanagari(result)) {
-      result = await callTranslator(text, targetLanguage, true);
+      result = await callTranslator(text, targetLanguage, senderName, true);
     }
 
-    // Final deterministic safety net: force-replace any known common terms
-    // that survived both AI attempts. Guarantees correctness for greetings
-    // regardless of model behavior.
     if (targetIsEnglish) {
       result = applyKnownTermsToEnglish(result);
     }
