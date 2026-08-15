@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import useIsMobile from '../hooks/useIsMobile';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -19,6 +20,7 @@ export default function Panchang() {
   const [panchang,     setPanchang]     = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     fetchPanchang(new Date());
@@ -95,7 +97,7 @@ export default function Panchang() {
       <div className="container" style={{ padding: '48px 24px' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '380px 1fr',
+          gridTemplateColumns: isMobile ? '1fr' : '380px 1fr',
           gap: 24, alignItems: 'start'
         }}>
 
@@ -241,7 +243,7 @@ export default function Panchang() {
 
                 {/* Pancha Angas */}
                 <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+                  display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
                   gap: 12, marginBottom: 16
                 }}>
                   {[
@@ -277,7 +279,7 @@ export default function Panchang() {
                 }}>
                   <span className="section-label">PLANETARY POSITIONS</span>
                   <div style={{
-                    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+                    display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
                     gap: 12, marginTop: 16
                   }}>
 
@@ -300,7 +302,7 @@ export default function Panchang() {
 
                 {/* Auspicious Timings */}
                 <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr',
+                  display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
                   gap: 16, marginBottom: 16
                 }}>
                   <div style={{

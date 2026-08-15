@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import useIsMobile from '../hooks/useIsMobile';
 
 const COMPATIBILITY_TYPES = [
   {
@@ -49,6 +50,7 @@ export default function Compatibility() {
   });
 
   const activeConfig = COMPATIBILITY_TYPES.find(t => t.key === activeType);
+  const isMobile = useIsMobile();  // add inside the component, with your other hooks
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,7 +97,7 @@ export default function Compatibility() {
         {/* Type selector */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
           gap: 14, marginBottom: 40
         }}>
           {COMPATIBILITY_TYPES.map(t => (
@@ -124,8 +126,8 @@ export default function Compatibility() {
         </div>
 
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: result ? '1fr 1.2fr' : '1fr',
+          display: 'grid',gridTemplateColumns: isMobile ? '1fr' : (result ? '1fr 1.2fr' : '1fr'),
+          
           gap: 24, alignItems: 'start',
           maxWidth: result ? '100%' : 760,
           margin: result ? '0' : '0 auto'
@@ -219,7 +221,7 @@ export default function Compatibility() {
                           value={form.name1} onChange={e => setForm(f => ({ ...f, name1: e.target.value }))}
                           style={inputStyle} />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                         <div>
                           <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Date of Birth *</label>
                           <input type="date" required value={form.dob1}

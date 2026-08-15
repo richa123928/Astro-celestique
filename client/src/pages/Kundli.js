@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import PlaceAutocomplete from '../components/PlaceAutocomplete';
+import React, { useState } from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import PlaceAutocomplete from '../components/PlaceAutocomplete';
+import useIsMobile from '../hooks/useIsMobile';
 
 const RASHI_LIST = [
   'Mesha (Aries)', 'Vrishabha (Taurus)', 'Mithuna (Gemini)',
@@ -34,6 +39,7 @@ export default function Kundli() {
   const [form, setForm] = useState({
     name: '', dob: '', tob: '', pob: '', lat: null, lng: null, timeNA: false, gender: 'male'
   });
+  const isMobile = useIsMobile();
 
   const generateKundli = async (e) => {
     e.preventDefault();
@@ -229,10 +235,10 @@ export default function Kundli() {
 
             {/* Main Grid */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 20, marginBottom: 20
-            }}>
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+  gap: 20, marginBottom: 20
+}}>
 
               {/* Birth Chart Visual */}
               <div style={{
@@ -337,7 +343,7 @@ export default function Kundli() {
               <span className="section-label">PLANETARY POSITIONS</span>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
                 gap: 12, marginTop: 16
               }}>
                 {PLANETS.map((planet) => (

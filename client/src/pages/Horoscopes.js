@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import useIsMobile from '../hooks/useIsMobile';
 
 const SIGNS = [
   { name: 'Aries',       symbol: '♈', dates: 'Mar 21 - Apr 19', element: 'Fire',  icon: '🐏' },
@@ -31,6 +32,7 @@ export default function Horoscopes() {
   const [horoscope,    setHoroscope]    = useState(null);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
+  const isMobile = useIsMobile();
 
   const fetchHoroscope = async (sign, type) => {
     setLoading(true);
@@ -115,7 +117,7 @@ export default function Horoscopes() {
         {/* Zodiac Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(6, 1fr)',
+          gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)',
           gap: 12,
           marginBottom: 48
         }}>
@@ -302,7 +304,7 @@ export default function Horoscopes() {
             {/* Cards Grid */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
               gap: 16, marginBottom: 20
             }}>
               {[
@@ -327,7 +329,7 @@ export default function Horoscopes() {
             {/* Lucky + Planetary */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
               gap: 16, marginBottom: 20
             }}>
               {/* Lucky */}

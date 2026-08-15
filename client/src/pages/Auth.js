@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import toast from 'react-hot-toast';
 
 export default function Auth() {
-  const [mode,    setMode]    = useState('login');
+  const [mode,    setMode]    = useState('login'); // 'login' | 'register' | 'forgot'
   const [loading, setLoading] = useState(false);
   const [form,    setForm]    = useState({ name: '', email: '', password: '' });
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent,  setForgotSent]  = useState(false);
   const { login, register }   = useAuth();
   const navigate              = useNavigate();
 
@@ -22,6 +25,19 @@ export default function Auth() {
         toast.success('Account created successfully!');
       }
       navigate('/');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await axios.post('/api/auth/forgot-password', { email: forgotEmail });
+      setForgotSent(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Something went wrong');
     } finally {
@@ -46,90 +62,142 @@ export default function Auth() {
 
         {/* Card */}
         <div className="auth-card">
-          <h1 className="auth-title serif">
-            {mode === 'login' ? 'Welcome back' : 'Begin your journey'}
-          </h1>
-          <p className="auth-subtitle">
-            {mode === 'login'
-              ? 'Sign in to access your cosmic dashboard'
-              : 'Create your account to explore Vedic wisdom'
-            }
-          </p>
+          {mode === 'forgot' ? (
+            <>
+              <h1 className="auth-title serif">Reset your password</h1>
+              <p className="auth-subtitle">
+                {forgotSent
+                  ? "Check your email for a reset link. It'll expire in 10 minutes."
+                  : "Enter your email and we'll send you a link to reset your password."
+                }
+              </p>
 
-          {/* Tab Toggle */}
-          <div className="auth-tabs">
-            <button
-              className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
-              onClick={() => setMode('login')}
-            >
-              Sign In
-            </button>
-            <button
-              className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
-              onClick={() => setMode('register')}
-            >
-              Register
-            </button>
-          </div>
+              {!forgotSent ? (
+                <form onSubmit={handleForgotSubmit} className="auth-form">
+                  <div className="auth-field">
+                    <label>Email Address</label>
+                    <input
+                      type="email"
+                      placeholder="you@example.com"
+                      required
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="auth-submit btn-primary" disabled={loading}>
+                    {loading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </form>
+              ) : (
+                <div style={{ textAlign: 'center', fontSize: 40, margin: '12px 0 24px' }}>📧</div>
+              )}
 
-          <form onSubmit={handleSubmit} className="auth-form">
-            {mode === 'register' && (
-              <div className="auth-field">
-                <label>Full Name</label>
-                <input
-                  type="text"
-                  placeholder="Your full name"
-                  required
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                />
+              <p className="auth-switch">
+                <button
+                  className="auth-switch-btn"
+                  onClick={() => { setMode('login'); setForgotSent(false); setForgotEmail(''); }}
+                >
+                  ← Back to Sign In
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="auth-title serif">
+                {mode === 'login' ? 'Welcome back' : 'Begin your journey'}
+              </h1>
+              <p className="auth-subtitle">
+                {mode === 'login'
+                  ? 'Sign in to access your cosmic dashboard'
+                  : 'Create your account to explore Vedic wisdom'
+                }
+              </p>
+
+              {/* Tab Toggle */}
+              <div className="auth-tabs">
+                <button
+                  className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
+                  onClick={() => setMode('login')}
+                >
+                  Sign In
+                </button>
+                <button
+                  className={`auth-tab ${mode === 'register' ? 'active' : ''}`}
+                  onClick={() => setMode('register')}
+                >
+                  Register
+                </button>
               </div>
-            )}
 
-            <div className="auth-field">
-              <label>Email Address</label>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                required
-                value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              />
-            </div>
+              <form onSubmit={handleSubmit} className="auth-form">
+                {mode === 'register' && (
+                  <div className="auth-field">
+                    <label>Full Name</label>
+                    <input
+                      type="text"
+                      placeholder="Your full name"
+                      required
+                      value={form.name}
+                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    />
+                  </div>
+                )}
 
-            <div className="auth-field">
-              <label>Password</label>
-              <input
-                type="password"
-                placeholder="Min. 6 characters"
-                required
-                minLength={6}
-                value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              />
-            </div>
+                <div className="auth-field">
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    required
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
 
-            <button
-              type="submit"
-              className="auth-submit btn-primary"
-              disabled={loading}
-            >
-              {loading
-                ? 'Please wait...'
-                : mode === 'login' ? 'Sign In' : 'Create Account'
-              }
-            </button>
-          </form>
+                <div className="auth-field">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    placeholder="Min. 6 characters"
+                    required
+                    minLength={6}
+                    value={form.password}
+                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  />
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      className="auth-forgot-link"
+                      onClick={() => setMode('forgot')}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
 
-          <p className="auth-switch">
-            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              className="auth-switch-btn"
-              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-            >
-              {mode === 'login' ? 'Register' : 'Sign In'}
-            </button>
-          </p>
+                <button
+                  type="submit"
+                  className="auth-submit btn-primary"
+                  disabled={loading}
+                >
+                  {loading
+                    ? 'Please wait...'
+                    : mode === 'login' ? 'Sign In' : 'Create Account'
+                  }
+                </button>
+              </form>
+
+              <p className="auth-switch">
+                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                <button
+                  className="auth-switch-btn"
+                  onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                >
+                  {mode === 'login' ? 'Register' : 'Sign In'}
+                </button>
+              </p>
+            </>
+          )}
         </div>
 
         <p className="auth-terms">
@@ -257,6 +325,16 @@ export default function Auth() {
         }
         .auth-field input::placeholder {
           color: var(--text-dim);
+        }
+        .auth-forgot-link {
+          align-self: flex-end;
+          background: none;
+          border: none;
+          color: var(--gold-light);
+          font-size: 12px;
+          cursor: pointer;
+          font-family: var(--font-sans);
+          padding: 2px 0;
         }
         .auth-submit {
           width: 100%;

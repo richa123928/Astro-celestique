@@ -22,7 +22,7 @@ export default function Navbar() {
   const [currentTime,   setCurrentTime]   = useState('');
 
   const { user, logout, isAuthenticated } = useAuth();
-  const { currency, setCurrency }         = useCurrency();
+  const { currency, setCurrency,convert}         = useCurrency();
   const { timezone, setTimezone, getCurrentTime } = useTimezone();
   const navigate = useNavigate();
 
@@ -114,16 +114,19 @@ export default function Navbar() {
           </div>
 
           {/* Auth */}
-          {isAuthenticated ? (
-            <div className="navbar__user">
-              <span className="navbar__username">
-                {user?.name?.split(' ')[0]}
-              </span>
-              <button className="btn-ghost" onClick={logout}>
-                Logout
-              </button>
-            </div>
-          ) : (
+{isAuthenticated ? (
+  <>
+    <div style={{
+      fontSize: 14, color: 'var(--gold-light)', padding: '10px 16px',
+      background: 'rgba(201,150,60,0.08)', borderRadius: 10, marginBottom: 8
+    }}>
+      💰 Wallet: {convert(user?.walletBalance || 0)}
+    </div>
+    <button className="btn-ghost" onClick={() => { logout(); setMenuOpen(false); }}>
+      Logout
+    </button>
+  </>
+) : (
             <button
               className="navbar__signin"
               onClick={() => navigate('/auth')}

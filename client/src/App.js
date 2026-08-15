@@ -29,6 +29,7 @@ import AstrologerDashboard from './pages/AstrologerDashboard';
 import Privacy from './pages/Privacy';
 import PaymentPolicy from './pages/PaymentPolicy';
 import Support from './pages/Support';
+import ResetPassword from './pages/ResetPassword';
 
 // Protected Route
 function ProtectedRoute({ children }) {
@@ -99,6 +100,7 @@ function AppRoutes() {
       <Route path="/astrologer/dashboard" element={<Layout><AstrologerDashboard /></Layout>} />
       <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
 <Route path="/payment-policy" element={<Layout><PaymentPolicy /></Layout>} />
+<Route path="/reset-password/:token" element={<Layout><ResetPassword /></Layout>} />
 <Route path="/support" element={<Layout><Support /></Layout>} />
       <Route path="*"                    element={<Navigate to="/" replace />} />
     </Routes>

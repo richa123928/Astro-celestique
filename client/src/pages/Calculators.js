@@ -111,7 +111,7 @@ export default function Calculators() {
       <div className="container" style={{ padding: '48px 24px' }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: active ? '1fr 1.2fr' : '1fr',
+          gridTemplateColumns: isMobile ? '1fr' : (active ? '1fr 1.2fr' : '1fr'),
           gap: 24, alignItems: 'start'
         }}>
 

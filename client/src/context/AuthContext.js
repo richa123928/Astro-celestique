@@ -53,6 +53,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Lets any page (e.g. after adding funds, or after billing deducts
+  // wallet during a consultation) tell the whole app to re-sync the
+  // user's data — this is what keeps the navbar's wallet balance live.
+  const refreshUser = () => fetchMe();
+
+  // Or update it instantly without a round trip, when a page already
+  // knows the new balance (e.g. Razorpay just confirmed a top-up).
+  const updateWalletBalance = (newBalance) => {
+    setUser(prev => prev ? { ...prev, walletBalance: newBalance } : prev);
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -60,6 +71,8 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      refreshUser,
+      updateWalletBalance,
       isAuthenticated: !!user
     }}>
       {children}

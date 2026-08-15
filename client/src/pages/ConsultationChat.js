@@ -118,7 +118,7 @@ export default function ConsultationChat() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   const requestChat = () => {
@@ -436,7 +436,7 @@ const addFunds = async () => {
   // ── Active Chat ──────────────────────────────────────────────────────────
   return (
     <div style={{
-      minHeight: '100vh', background: 'var(--navy-deep)',
+      minHeight: '100dvh', background: 'var(--navy-deep)',
       paddingTop: 80, display: 'flex', flexDirection: 'column'
     }}>
 
@@ -523,9 +523,10 @@ const addFunds = async () => {
 
       {/* Messages */}
       <div style={{
-        flex: 1, overflowY: 'auto', padding: '20px',
-        maxHeight: 'calc(100vh - 300px)'
-      }}>
+  flex: 1, overflowY: 'auto', padding: '20px',
+  maxHeight: 'calc(100vh - 300px)',
+  overflowAnchor: 'none'
+}}>
         <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {messages.map((msg, i) => (
             <div key={i}>

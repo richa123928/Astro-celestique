@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import usePayment from '../hooks/usePayment';
+import useIsMobile from '../hooks/useIsMobile';
+
 
 const PUJAS = [
   {
@@ -103,6 +105,8 @@ export default function Puja() {
     deceasedName: '', dateOfDeath: '', placeOfDeath: '',
     preferredDate: '', notes: ''
   });
+
+  const isMobile = useIsMobile();
 
   const handleBook = (puja) => {
     if (!isAuthenticated) {
@@ -491,7 +495,7 @@ function Field({ label, children }) {
 
 function Row({ children }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
       {children}
     </div>
   );

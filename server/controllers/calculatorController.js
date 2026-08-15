@@ -270,7 +270,7 @@ Return ONLY this JSON:
   };
 
   const completion = await groq.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     messages: [
       { role: 'system', content: 'You are an expert Vedic astrologer. Always respond with valid JSON only. No markdown, no backticks, no extra text.' },
       { role: 'user',   content: prompts[type] }

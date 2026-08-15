@@ -43,7 +43,7 @@ export default function AIChat() {
   }, [user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   const sendMessage = async (text) => {
@@ -103,7 +103,7 @@ export default function AIChat() {
   };
   return (
     <div style={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       background: 'var(--navy-deep)',
       paddingTop: 80,
       display: 'flex',
@@ -177,8 +177,8 @@ export default function AIChat() {
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div className="container" style={{
           flex: 1, display: 'flex', flexDirection: 'column',
-          padding: '24px', gap: 16, maxHeight: 'calc(100vh - 280px)',
-          overflowY: 'auto'
+          padding: '24px', gap: 16, maxHeight: 'calc(100dvh - 280px)',
+          overflowY: 'auto',overflowAnchor: 'none'
         }}>
 
           {messages.map((msg, i) => (
