@@ -26,14 +26,18 @@ exports.bookPuja = async (req, res) => {
     });
 
     // Send emails
-    const user = await User.findById(req.user._id);
-    await sendPujaBookingNotification(puja, user);
-
+    // Respond immediately — don't make the user wait on the email round-trip
     res.status(201).json({
       success: true,
       message: 'Puja booked successfully! Our team will contact you within 24 hours.',
       puja
     });
+
+    // Send the confirmation email in the background, after responding.
+    // A slow/failed email should never delay or block a successful booking.
+    User.findById(req.user._id)
+      .then(user => sendPujaBookingNotification(puja, user))
+      .catch(err => console.error('Puja notification email error:', err.message));
   } catch (err) {
     console.error('Puja booking error:', err.message);
     res.status(500).json({

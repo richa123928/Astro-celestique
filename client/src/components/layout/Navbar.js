@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency, CURRENCIES } from '../../context/CurrencyContext';
 import { useTimezone, TIMEZONES } from '../../context/TimezoneContext';
 import './Navbar.css';
+
 
 const NAV_LINKS = [
   { label: 'Consultations', href: '/consultations' },
@@ -39,6 +40,22 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const currencyRef = useRef(null);
+  const timezoneRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (currencyRef.current && !currencyRef.current.contains(e.target)) {
+        setCurrencyOpen(false);
+      }
+      if (timezoneRef.current && !timezoneRef.current.contains(e.target)) {
+        setTimezoneOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
       <div className="navbar__inner container">
@@ -62,7 +79,7 @@ export default function Navbar() {
         <div className="navbar__actions">
 
           {/* Currency Switcher */}
-          <div className="currency-switcher" onClick={() => setCurrencyOpen(o => !o)}>
+          <div className="currency-switcher" ref={currencyRef} onClick={() => setCurrencyOpen(o => !o)}>
             <span>{currency}</span>
             <span className="currency-arrow">▾</span>
             {currencyOpen && (
@@ -86,8 +103,8 @@ export default function Navbar() {
           </div>
 
           {/* Timezone Switcher */}
-          <div className="currency-switcher" onClick={() => setTimezoneOpen(o => !o)}
-            style={{ position: 'relative' }}>
+          <div className="currency-switcher" ref={timezoneRef} onClick={() => setTimezoneOpen(o => !o)}
+          style={{ position: 'relative' }}>
             <span>🌐</span>
             <span>{timezone}</span>
             <span style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 2 }}>{currentTime}</span>
@@ -114,19 +131,24 @@ export default function Navbar() {
           </div>
 
           {/* Auth */}
-{isAuthenticated ? (
+          {isAuthenticated ? (
   <>
-    <div style={{
-      fontSize: 14, color: 'var(--gold-light)', padding: '10px 16px',
-      background: 'rgba(201,150,60,0.08)', borderRadius: 10, marginBottom: 8
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      fontSize: 13, color: 'var(--gold-light)',
+      background: 'rgba(201,150,60,0.1)',
+      border: '1px solid rgba(201,150,60,0.25)',
+      padding: '5px 12px', borderRadius: 100,
+      whiteSpace: 'nowrap', flexShrink: 0
     }}>
-      💰 Wallet: {convert(user?.walletBalance || 0)}
-    </div>
+      💰 {convert(user?.walletBalance || 0)}
+    </span>
     <button className="btn-ghost" onClick={() => { logout(); setMenuOpen(false); }}>
       Logout
     </button>
   </>
 ) : (
+
             <button
               className="navbar__signin"
               onClick={() => navigate('/auth')}
@@ -141,7 +163,7 @@ export default function Navbar() {
           </Link>
 
           {/* CTA Button */}
-          <Link to="/consultations" className="btn-primary navbar__cta">
+          <Link to="/consultations" className="btn-primary navbar__cta" style={{ flexShrink: 0 }}> 
             <span className="navbar__cta-dot">●</span>
             Talk to Astrologer
           </Link>

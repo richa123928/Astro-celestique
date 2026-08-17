@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import useIsMobile from '../hooks/useIsMobile';
+
 
 const CALCULATORS = [
   { key: 'numerology',   title: 'Numerology',        icon: '🔢', desc: 'Discover your life path, destiny and soul numbers' },
@@ -20,6 +22,8 @@ export default function Calculators() {
   const [form,    setForm]    = useState({
     name: '', dob: '', name2: '', dob2: '', date: ''
   });
+
+  const isMobile = useIsMobile();
 
   const calculate = async (e) => {
     e.preventDefault();

@@ -494,6 +494,7 @@ function Field({ label, children }) {
 }
 
 function Row({ children }) {
+  const isMobile = useIsMobile();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
       {children}

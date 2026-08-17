@@ -2,10 +2,6 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import PlaceAutocomplete from '../components/PlaceAutocomplete';
-import React, { useState } from 'react';
-import axios from 'axios';
-import toast from 'react-hot-toast';
-import PlaceAutocomplete from '../components/PlaceAutocomplete';
 import useIsMobile from '../hooks/useIsMobile';
 
 const RASHI_LIST = [
