@@ -1,30 +1,29 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
+const { Resend } = require('resend');
 
-dns.setDefaultResultOrder('ipv4first');
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  family: 4,
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Send email utility
 const sendEmail = async ({ to, subject, html }) => {
   try {
-    const mailOptions = {
-      from: `"Astro Celestique" <${process.env.EMAIL_USER}>`,
-      to,
+    const { data, error } = await resend.emails.send({
+      // Until you verify astrocelestique.com as a sending domain in Resend,
+      // this "resend.dev" address is the only one that works — it sends
+      // fine, it just shows this as the sender instead of your own domain.
+      // Once verified (Resend dashboard → Domains, add a few DNS records
+      // in Hostinger), change this to something like
+      // 'Astro Celestique <noreply@astrocelestique.com>'.
+      from: 'Astro Celestique <onboarding@resend.dev>',
+      to: [to],
       subject,
       html,
-    };
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.messageId);
+    });
+
+    if (error) {
+      console.error('Email error:', error.message || error);
+      return false;
+    }
+
+    console.log('Email sent:', data.id);
     return true;
   } catch (err) {
     console.error('Email error:', err.message);
