@@ -12,7 +12,7 @@ const sendEmail = async ({ to, subject, html }) => {
       // Once verified (Resend dashboard → Domains, add a few DNS records
       // in Hostinger), change this to something like
       // 'Astro Celestique <noreply@astrocelestique.com>'.
-      from: 'Astro Celestique <onboarding@resend.dev>',
+      from: 'Astro Celestique <noreply@astrocelestique.com>',
       to: [to],
       subject,
       html,
