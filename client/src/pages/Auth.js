@@ -3,15 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import useIsMobile from '../hooks/useIsMobile';
 
 export default function Auth() {
   const [mode,    setMode]    = useState('login'); // 'login' | 'register' | 'forgot'
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [form,    setForm]    = useState({ name: '', email: '', password: '' });
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent,  setForgotSent]  = useState(false);
   const { login, register }   = useAuth();
   const navigate              = useNavigate();
+  const isMobile = useIsMobile();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,23 +50,23 @@ export default function Auth() {
 
   return (
     <div className="auth-page">
-      {/* Background */}
       <div className="auth-bg">
         <div className="auth-glow auth-glow--1" />
         <div className="auth-glow auth-glow--2" />
       </div>
 
       <div className="auth-container">
-        {/* Logo */}
         <Link to="/" className="auth-logo">
           <span style={{ color: 'var(--gold)' }}>◉</span>
-          <span>Jyotish<span style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>AI</span></span>
+          <span>Astro <span style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>Celestique</span></span>
         </Link>
 
-        {/* Card */}
         <div className="auth-card">
           {mode === 'forgot' ? (
             <>
+              <button className="auth-back-arrow" onClick={() => { setMode('login'); setForgotSent(false); setForgotEmail(''); }}>
+                ← Back
+              </button>
               <h1 className="auth-title serif">Reset your password</h1>
               <p className="auth-subtitle">
                 {forgotSent
@@ -89,17 +92,8 @@ export default function Auth() {
                   </button>
                 </form>
               ) : (
-                <div style={{ textAlign: 'center', fontSize: 40, margin: '12px 0 24px' }}>📧</div>
+                <div style={{ textAlign: 'center', fontSize: 44, margin: '16px 0 8px' }}>📧</div>
               )}
-
-              <p className="auth-switch">
-                <button
-                  className="auth-switch-btn"
-                  onClick={() => { setMode('login'); setForgotSent(false); setForgotEmail(''); }}
-                >
-                  ← Back to Sign In
-                </button>
-              </p>
             </>
           ) : (
             <>
@@ -113,7 +107,6 @@ export default function Auth() {
                 }
               </p>
 
-              {/* Tab Toggle */}
               <div className="auth-tabs">
                 <button
                   className={`auth-tab ${mode === 'login' ? 'active' : ''}`}
@@ -155,24 +148,37 @@ export default function Auth() {
                 </div>
 
                 <div className="auth-field">
-                  <label>Password</label>
-                  <input
-                    type="password"
-                    placeholder="Min. 6 characters"
-                    required
-                    minLength={6}
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  />
-                  {mode === 'login' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label>Password</label>
+                    {mode === 'login' && (
+                      <button
+                        type="button"
+                        className="auth-forgot-link"
+                        onClick={() => setMode('forgot')}
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Min. 6 characters"
+                      required
+                      minLength={6}
+                      value={form.password}
+                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                      style={{ paddingRight: 44 }}
+                    />
                     <button
                       type="button"
-                      className="auth-forgot-link"
-                      onClick={() => setMode('forgot')}
+                      onClick={() => setShowPassword(s => !s)}
+                      className="auth-eye-toggle"
+                      tabIndex={-1}
                     >
-                      Forgot password?
+                      {showPassword ? '🙈' : '👁'}
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 <button
@@ -208,11 +214,11 @@ export default function Auth() {
 
       <style>{`
         .auth-page {
-          min-height: 100vh;
+          min-height: 100dvh;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 24px;
+          padding: ${isMobile ? '16px' : '24px'};
           position: relative;
           overflow: hidden;
           background: var(--navy-deep);
@@ -249,18 +255,27 @@ export default function Auth() {
           align-items: center;
           gap: 10px;
           font-family: var(--font-serif);
-          font-size: 28px;
+          font-size: ${isMobile ? '24px' : '28px'};
           color: var(--text-primary);
+          text-decoration: none;
         }
         .auth-card {
           width: 100%;
           background: var(--navy-card);
           border: 1px solid var(--border-light);
           border-radius: 24px;
-          padding: 40px 36px;
+          padding: ${isMobile ? '32px 24px' : '40px 36px'};
+          position: relative;
         }
+        .auth-back-arrow {
+          background: none; border: none; cursor: pointer;
+          color: var(--text-muted); font-size: 13px;
+          padding: 0; margin-bottom: 16px;
+          font-family: var(--font-sans);
+        }
+        .auth-back-arrow:hover { color: var(--gold-light); }
         .auth-title {
-          font-size: 32px;
+          font-size: ${isMobile ? '26px' : '32px'};
           font-weight: 400;
           color: var(--text-primary);
           margin-bottom: 8px;
@@ -269,6 +284,7 @@ export default function Auth() {
           font-size: 14px;
           color: var(--text-muted);
           margin-bottom: 28px;
+          line-height: 1.5;
         }
         .auth-tabs {
           display: flex;
@@ -310,6 +326,7 @@ export default function Auth() {
           color: var(--text-muted);
         }
         .auth-field input {
+          width: 100%;
           padding: 13px 16px;
           background: rgba(255,255,255,0.04);
           border: 1px solid var(--border-light);
@@ -319,6 +336,7 @@ export default function Auth() {
           outline: none;
           transition: border-color 0.2s;
           font-family: var(--font-sans);
+          box-sizing: border-box;
         }
         .auth-field input:focus {
           border-color: var(--gold-dim);
@@ -326,8 +344,15 @@ export default function Auth() {
         .auth-field input::placeholder {
           color: var(--text-dim);
         }
+        .auth-eye-toggle {
+          position: absolute;
+          right: 14px; top: 50%;
+          transform: translateY(-50%);
+          background: none; border: none;
+          cursor: pointer; font-size: 16px;
+          padding: 4px; line-height: 1;
+        }
         .auth-forgot-link {
-          align-self: flex-end;
           background: none;
           border: none;
           color: var(--gold-light);

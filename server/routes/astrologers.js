@@ -1,17 +1,11 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const astrologerStatusStore = require('../utils/astrologerStatusStore');
+const { getAstrologers, getMyProfile, getStatus } = require('../controllers/astrologerController');
+const { protect } = require('../middleware/auth');
 
-router.get('/', (req, res) => {
-  res.json({ success: true, message: 'Astrologers route working' });
-});
-
-// @desc    Real-time online/busy astrologer IDs (polled by the frontend
-//          every few seconds to show live status badges)
-// @route   GET /api/astrologers/status
-router.get('/status', (req, res) => {
-  const { onlineAstrologers, busyAstrologers } = astrologerStatusStore.getStatusSnapshot();
-  res.json({ success: true, onlineAstrologers, busyAstrologers });
-});
+router.get('/', getAstrologers);
+router.get('/me', protect, getMyProfile);
+router.get('/status', getStatus);
 
 module.exports = router;
