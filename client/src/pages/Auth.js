@@ -15,25 +15,26 @@ export default function Auth() {
   const { login, register }   = useAuth();
   const navigate              = useNavigate();
   const isMobile = useIsMobile();
-
+  
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (mode === 'login') {
-        await login(form.email, form.password);
-        toast.success('Welcome back!');
-      } else {
-        await register(form.name, form.email, form.password);
-        toast.success('Account created successfully!');
-      }
+  e.preventDefault();
+  setLoading(true);
+  try {
+    if (mode === 'login') {
+      const { user } = await login(form.email, form.password);
+      toast.success('Welcome back!');
+      navigate(user.role === 'astrologer' ? '/astrologer/dashboard' : '/');
+    } else {
+      await register(form.name, form.email, form.password);
+      toast.success('Account created successfully!');
       navigate('/');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Something went wrong');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleForgotSubmit = async (e) => {
     e.preventDefault();

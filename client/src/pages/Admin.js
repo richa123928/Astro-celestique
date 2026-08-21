@@ -43,6 +43,7 @@ export default function Admin() {
   const [users,      setUsers]      = useState([]);
   const [astrologers, setAstrologers] = useState([]);
   const [loading,    setLoading]    = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [selected,   setSelected]   = useState(null);
   const [showAstrologerForm, setShowAstrologerForm] = useState(false);
   const [astrologerForm, setAstrologerForm] = useState(EMPTY_ASTROLOGER_FORM);
@@ -109,6 +110,35 @@ export default function Admin() {
       toast.error('Failed to update status');
     }
   };
+
+  const handleImageUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  setUploadingImage(true);
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'astro_celestique_unsigned'); // your preset name
+
+    const res = await fetch('https://api.cloudinary.com/v1_1/df5pzzgbx/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+
+    if (data.secure_url) {
+      setAstrologerForm(f => ({ ...f, avatar: data.secure_url }));
+      toast.success('Image uploaded!');
+    } else {
+      toast.error('Upload failed. Please try again.');
+    }
+  } catch (err) {
+    toast.error('Upload failed. Please try again.');
+  } finally {
+    setUploadingImage(false);
+  }
+};
 
   const toggleExpertise = (val) => {
     setAstrologerForm(f => ({
@@ -591,6 +621,26 @@ export default function Admin() {
                   style={inputStyle} placeholder="e.g. Rajesh Sharma" />
               </div>
 
+              <div>
+  <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Profile Photo</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={handleImageUpload}
+    style={{ ...inputStyle, padding: '10px 16px' }}
+  />
+  {uploadingImage && (
+    <p style={{ fontSize: 12, color: 'var(--gold)', marginTop: 6 }}>Uploading...</p>
+  )}
+  {astrologerForm.avatar && !uploadingImage && (
+    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <img src={astrologerForm.avatar} alt="Preview"
+        style={{ width: 60, height: 60, borderRadius: 12, objectFit: 'cover' }} />
+      <span style={{ fontSize: 12, color: '#4ade80' }}>✓ Photo ready</span>
+    </div>
+  )}
+</div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Login Email *</label>
@@ -672,7 +722,7 @@ export default function Admin() {
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary" disabled={creatingAstrologer}
+              <button type="submit" className="btn-primary" disabled={creatingAstrologer || uploadingImage}
                 style={{ width: '100%', justifyContent: 'center', padding: 14, marginTop: 8 }}>
                 {creatingAstrologer ? 'Creating...' : 'Create Astrologer Account'}
               </button>

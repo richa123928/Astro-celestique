@@ -76,6 +76,13 @@ io.on('connection', (socket) => {
     socket.astrologerId = astrologerId;
   });
 
+    // Astrologer manually changes their own status (online/busy/offline)
+  socket.on('set_status', ({ astrologerId, status }) => {
+    astrologerStatusStore.setStatus(astrologerId.toString(), status);
+    io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
+    console.log(`Astrologer ${astrologerId} set status to ${status}`);
+  });
+
   // User requests chat with astrologer
   socket.on('chat_request', ({ astrologerId, userId, userName, userLanguage }) => {
     const astrologerSocketId = onlineAstrologers[astrologerId];

@@ -2,17 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import axios from 'axios';
 import toast from 'react-hot-toast';
-
-// Map logged-in user to astrologer ID for testing
-// In production each astrologer has their own account
-const ASTROLOGER_MAP = {
-  'yricha246@gmail.com': '1', // Admin → Shukramuni Ji (id: 1)
-};
 
 export default function AstrologerDashboard() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate                                         = useNavigate();
+
+  const [profile,       setProfile]       = useState(null);
+  const [profileLoading,setProfileLoading]= useState(true);
+  const [profileError,  setProfileError]  = useState(null);
 
   const [socket,        setSocket]        = useState(null);
   const [onlineStatus,  setOnlineStatus]  = useState('online');
@@ -30,16 +29,38 @@ export default function AstrologerDashboard() {
   const messagesEndRef = useRef(null);
   const timerRef       = useRef(null);
 
-  const astrologerId = user?.email ? (ASTROLOGER_MAP[user.email] || '1') : '1';
+  // Real astrologer ID from the logged-in account's own profile — no more
+  // hardcoded email-to-ID mapping. Any astrologer created via the Admin
+  // panel can log in normally and their dashboard will correctly resolve
+  // to their own profile here.
+  const astrologerId = profile?._id;
 
+  // Fetch the logged-in user's own astrologer profile
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) { navigate('/auth'); return; }
 
+    const fetchProfile = async () => {
+      try {
+        const { data } = await axios.get('/api/astrologers/me');
+        setProfile(data.astrologer);
+      } catch (err) {
+        setProfileError(err.response?.data?.message || 'Could not load your astrologer profile.');
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [authLoading, isAuthenticated]);
+
+  // Socket connection — only once we have a real astrologerId
+  useEffect(() => {
+    if (!astrologerId) return;
+
     const newSocket = io('https://astro-celestique.onrender.com');
     setSocket(newSocket);
 
-    // Register as astrologer when socket connects
     newSocket.on('connect', () => {
       newSocket.emit('astrologer_online', {
         astrologerId,
@@ -48,16 +69,14 @@ export default function AstrologerDashboard() {
       console.log('Astrologer registered:', astrologerId);
     });
 
-    // Incoming chat request
     newSocket.on('incoming_request', (data) => {
       setIncomingReq(data);
       toast(`💬 New chat request from ${data.userName}!`, {
-        duration: 0, // Don't auto-dismiss
+        duration: 0,
         icon: '🔔'
       });
     });
 
-    // Receive messages
     newSocket.on('receive_message', (data) => {
       if (data.senderType === 'user' || !data.isMine) {
         setMessages(m => [...m, {
@@ -76,13 +95,11 @@ export default function AstrologerDashboard() {
       }
     });
 
-    // Typing
     newSocket.on('user_typing', () => {
       setIsTyping(true);
       setTimeout(() => setIsTyping(false), 2000);
     });
 
-    // Session ended by user
     newSocket.on('session_ended', () => {
       if (timerRef.current) clearInterval(timerRef.current);
       setSessionActive(false);
@@ -97,7 +114,7 @@ export default function AstrologerDashboard() {
       newSocket.disconnect();
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [authLoading, isAuthenticated]);
+  }, [astrologerId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,7 +136,6 @@ export default function AstrologerDashboard() {
       text: `✅ Connected with ${incomingReq.userName}. Chat started!`
     }]);
 
-    // Start timer
     timerRef.current = setInterval(() => setSessionTime(t => t + 1), 1000);
     toast.success(`Chat started with ${incomingReq.userName}`);
   };
@@ -137,13 +153,13 @@ export default function AstrologerDashboard() {
     setInput('');
 
     socket.emit('send_message', {
-  sessionId,
-  message:    msgText,
-  senderType: 'astrologer',
-  senderName: user?.name,
-  userLanguage: incomingReq?.userLanguage || 'english',
-  recipientName: incomingReq?.userName
-});
+      sessionId,
+      message:    msgText,
+      senderType: 'astrologer',
+      senderName: user?.name,
+      userLanguage: incomingReq?.userLanguage || 'english',
+      recipientName: incomingReq?.userName
+    });
 
     socket.emit('typing', { sessionId, senderType: 'astrologer' });
   };
@@ -166,7 +182,8 @@ export default function AstrologerDashboard() {
     return `${m}:${sec}`;
   };
 
-  if (authLoading) return (
+  // Loading state — waiting on auth or profile fetch
+  if (authLoading || profileLoading) return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
       justifyContent: 'center', background: 'var(--navy-deep)'
@@ -177,6 +194,27 @@ export default function AstrologerDashboard() {
         borderTop: '2px solid var(--gold)',
         animation: 'rotate 1s linear infinite'
       }} />
+    </div>
+  );
+
+  // This account isn't linked to an astrologer profile
+  if (profileError || !profile) return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: 'var(--navy-deep)', padding: 24
+    }}>
+      <div style={{ textAlign: 'center', maxWidth: 420 }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>🚫</div>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--text-primary)', marginBottom: 8 }}>
+          Not an Astrologer Account
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
+          {profileError || 'This account is not registered as an astrologer. Contact the admin if this seems wrong.'}
+        </p>
+        <button className="btn-primary" onClick={() => navigate('/')}>
+          Back to Home
+        </button>
+      </div>
     </div>
   );
 
@@ -246,13 +284,16 @@ export default function AstrologerDashboard() {
               fontFamily: 'var(--font-serif)', fontSize: 24,
               color: 'var(--text-primary)', marginTop: 4
             }}>
-              Namaste, {user?.name} 🙏
+              Namaste, {profile.displayName || user?.name} 🙏
             </h2>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {['online', 'busy', 'offline'].map(s => (
               <button key={s}
-                onClick={() => setOnlineStatus(s)}
+              onClick={() => {
+                setOnlineStatus(s);
+                socket?.emit('set_status', { astrologerId, status: s });
+              }}
                 style={{
                   padding: '8px 18px', borderRadius: 100,
                   border: '1px solid',
@@ -297,7 +338,7 @@ export default function AstrologerDashboard() {
           {[
             { label: "Today's Sessions", value: todaySessions, icon: '💬', color: '#e8b460' },
             { label: 'Total Minutes',    value: totalMinutes,  icon: '⏱',  color: '#4ade80' },
-            { label: "Today's Earnings", value: `₹${totalMinutes * 30}`, icon: '💰', color: '#818cf8' },
+            { label: "Today's Earnings", value: `₹${totalMinutes * (profile.pricePerMin || 0)}`, icon: '💰', color: '#818cf8' },
           ].map(s => (
             <div key={s.label} style={{
               background: 'var(--navy-card)',
@@ -361,7 +402,6 @@ export default function AstrologerDashboard() {
             display: 'flex', flexDirection: 'column',
             height: 'calc(100vh - 380px)', minHeight: 400
           }}>
-            {/* Chat header */}
             <div style={{
               padding: '14px 20px',
               borderBottom: '1px solid var(--border-light)',
@@ -388,7 +428,6 @@ export default function AstrologerDashboard() {
               </button>
             </div>
 
-            {/* Messages */}
             <div style={{
               flex: 1, overflow: 'auto', padding: '16px',
               display: 'flex', flexDirection: 'column', gap: 12
@@ -460,7 +499,6 @@ export default function AstrologerDashboard() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <div style={{
               borderTop: '1px solid var(--border-light)',
               padding: '14px 16px', display: 'flex', gap: 10

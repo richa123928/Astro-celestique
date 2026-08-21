@@ -27,6 +27,7 @@ exports.getAstrologers = async (req, res) => {
         rate: a.pricePerMin,
         rating: a.rating,
         totalSessions: a.totalSessions,
+        verified: a.isVerified,
         status: liveStatus
       };
     });

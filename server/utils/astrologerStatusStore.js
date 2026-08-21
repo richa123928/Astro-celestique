@@ -22,10 +22,23 @@ function setBusy(astrologerId) {
   }
 }
 
+
+
 function setAvailable(astrologerId) {
   const existing = statusMap.get(astrologerId);
   if (existing) {
     statusMap.set(astrologerId, { ...existing, status: 'online' });
+  }
+}
+
+function setStatus(astrologerId, status) {
+  const existing = statusMap.get(astrologerId);
+  if (existing) {
+    statusMap.set(astrologerId, { ...existing, status });
+  } else {
+    // Not connected via socket yet — store status anyway so it's ready
+    // once they do connect
+    statusMap.set(astrologerId, { status, socketId: null });
   }
 }
 
@@ -52,6 +65,7 @@ module.exports = {
   setOnline,
   setBusy,
   setAvailable,
+  setStatus,
   removeBySocketId,
   getStatusSnapshot
 };

@@ -5,89 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
-const ASTROLOGERS = [
-  {
-    id: 1,
-    name: 'Astrologer Shukramuni Ji',
-    avatar: null,
-    image: require('../assets/images/shukramuni.png'),
-    expertise: ['Vedic', 'Puja', 'Remedies', 'Brighu Nadi'],
-    languages: ['Hindi'],
-    experience: 18,
-    rate: 30,
-    rating: 4.9,
-    totalSessions: 5200,
-    status: 'online',
-    bio: 'Expert Vedic astrologer specialising in Brighu Nadi, Puja and Remedies with 18 years of deep lineage-based practice.',
-    verified: true,
-  },
-  {
-    id: 2,
-    name: 'Kaalchakra Manoj Gupta', avatar: null,
-    image: require('../assets/images/manoj.png'),
-    expertise: ['Ancient Vedic Astrology', 'Remedies'],
-    languages: ['Hindi'],
-    experience: 9, rate: 30, rating: 4.7,
-    totalSessions: 3200, status: 'online',
-    bio: 'Ancient Vedic Astrology specialist with 9+ years experience in remedies and predictive astrology.',
-    verified: true,
-  },
-//   {
-//     id: 3, name: 'Dr. Sunita Sharma', avatar: '🌸', image: null,
-//     expertise: ['Psychology', 'Vedic', 'Relationship'],
-//     languages: ['Hindi', 'English', 'Marathi'],
-//     experience: 22, rate: 8000, rating: 4.9,
-//     totalSessions: 18200, status: 'online',
-//     bio: 'Combines Vedic astrology with modern psychology for deep emotional healing and clarity.',
-//     verified: true,
-//   },
-//   {
-//     id: 4, name: 'Pandit Raghav Mishra', avatar: '🕉️', image: null,
-//     expertise: ['Prashna', 'Nadi', 'Remedies'],
-//     languages: ['Hindi', 'Sanskrit'],
-//     experience: 9, rate: 3000, rating: 4.7,
-//     totalSessions: 6800, status: 'busy',
-//     bio: 'Expert in Nadi astrology and Prashna Kundli. Specialises in instant horary readings.',
-//     verified: true,
-//   },
-//   {
-//     id: 5, name: 'Meera Kapur', avatar: '✨', image: null,
-//     expertise: ['Numerology', 'Tarot', 'Crystal Healing'],
-//     languages: ['Hindi', 'English', 'Gujarati'],
-//     experience: 14, rate: 5500, rating: 4.8,
-//     totalSessions: 9300, status: 'online',
-//     bio: 'Blends numerology, Tarot and Vedic astrology for holistic life guidance.',
-//     verified: true,
-//   },
-//   {
-//     id: 6, name: 'Guru Prakash Tiwari', avatar: '🌙', image: null,
-//     expertise: ['Vedic', 'Vastu', 'Career'],
-//     languages: ['Hindi', 'English'],
-//     experience: 25, rate: 10000, rating: 4.95,
-//     totalSessions: 22000, status: 'online',
-//     bio: 'Senior Jyotish Acharya with 25 years of experience in career, business and Vastu.',
-//     verified: true,
-//   },
-//   {
-//     id: 7, name: 'Priya Nair', avatar: '🌺', image: null,
-//     expertise: ['Tarot', 'Love & Marriage', 'Spiritual'],
-//     languages: ['Hindi', 'English', 'Malayalam'],
-//     experience: 8, rate: 2500, rating: 4.6,
-//     totalSessions: 4200, status: 'online',
-//     bio: 'Specialises in love, relationships and spiritual growth through Tarot and Vedic guidance.',
-//     verified: false,
-//   },
-//   {
-//     id: 8, name: 'Kavita Sharma', avatar: '🦋', image: null,
-//     expertise: ['Numerology', 'Vastu', 'Child Astrology'],
-//     languages: ['Hindi', 'English'],
-//     experience: 11, rate: 3500, rating: 4.7,
-//     totalSessions: 7600, status: 'online',
-//     bio: 'Specialises in child astrology, education timing and Vastu for homes and offices.',
-//     verified: true,
-//   }
-];
-
 const FILTERS = ['ALL', 'VEDIC', 'LOVE & MARRIAGE', 'CAREER', 'TAROT', 'NUMEROLOGY', 'NADI', 'VASTU'];
 
 const SORT_OPTIONS = [
@@ -101,31 +18,32 @@ export default function Consultations() {
   const { convert }                     = useCurrency();
   const { isAuthenticated }             = useAuth();
   const navigate                        = useNavigate();
+  const [astrologers,   setAstrologers]   = useState([]);
+  const [astroLoading,  setAstroLoading]  = useState(true);
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [sortBy,       setSortBy]       = useState('rating');
   const [searchQuery,  setSearchQuery]  = useState('');
   const [mode,         setMode]         = useState('chat');
   const [showComingSoon, setShowComingSoon] = useState({ show: false, astrologer: null, mode: '' });
-  const [liveStatus, setLiveStatus] = useState({});
 
+  // Fetch real astrologers from the database — this includes live
+  // online/busy/offline status merged in already, so we just refetch
+  // periodically instead of tracking a separate status source.
   useEffect(() => {
-  const checkStatus = async () => {
-    try {
-      const { data } = await axios.get('/api/astrologers/status');
-      const statusMap = {};
-      ASTROLOGERS.forEach(a => {
-        const id = a.id.toString();
-        if (data.busyAstrologers?.includes(id)) statusMap[a.id] = 'busy';
-        else if (data.onlineAstrologers.includes(id)) statusMap[a.id] = 'online';
-        else statusMap[a.id] = 'offline';
-      });
-      setLiveStatus(statusMap);
-    } catch (err) {}
-  };
-  checkStatus();
-  const interval = setInterval(checkStatus, 5000);
-  return () => clearInterval(interval);
-}, []);
+    const fetchAstrologers = async () => {
+      try {
+        const { data } = await axios.get('/api/astrologers');
+        setAstrologers(data.astrologers);
+      } catch (err) {
+        console.error('Failed to load astrologers', err);
+      } finally {
+        setAstroLoading(false);
+      }
+    };
+    fetchAstrologers();
+    const interval = setInterval(fetchAstrologers, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleConsult = (astrologer, consultMode, status) => {
     if (!isAuthenticated) {
@@ -148,17 +66,17 @@ export default function Consultations() {
     }
   };
 
-  let filtered = ASTROLOGERS.filter(a => {
+  let filtered = astrologers.filter(a => {
     const matchesFilter = activeFilter === 'ALL' ||
-      a.expertise.some(e => e.toUpperCase().includes(activeFilter));
+      (a.expertise || []).some(e => e.toUpperCase().includes(activeFilter));
     const matchesSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.expertise.some(e => e.toLowerCase().includes(searchQuery.toLowerCase()));
+      (a.expertise || []).some(e => e.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
   filtered = [...filtered].sort((a, b) => {
-    if (sortBy === 'rating')     return b.rating - a.rating;
-    if (sortBy === 'sessions')   return b.totalSessions - a.totalSessions;
+    if (sortBy === 'rating')     return (b.rating || 0) - (a.rating || 0);
+    if (sortBy === 'sessions')   return (b.totalSessions || 0) - (a.totalSessions || 0);
     if (sortBy === 'price_low')  return a.rate - b.rate;
     if (sortBy === 'price_high') return b.rate - a.rate;
     return 0;
@@ -261,160 +179,173 @@ export default function Consultations() {
           ))}
         </div>
 
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>
-          Showing {filtered.length} astrologers
-        </p>
+        {astroLoading ? (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '60px 0' }}>
+            Loading astrologers...
+          </p>
+        ) : (
+          <>
+            <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>
+              Showing {filtered.length} astrologers
+            </p>
 
-        {/* Astrologers Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 20
-        }}>
-          {filtered.map(a => {
-            const status = liveStatus[a.id] || 'offline';
-            return (
-              <div key={a.id} style={{
-                background: 'var(--navy-card)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 20, overflow: 'hidden',
-                transition: 'all 0.2s', display: 'flex', flexDirection: 'column',
+            {filtered.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '60px 0' }}>
+                No astrologers match your search right now.
+              </p>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: 20
               }}>
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'center', padding: '14px 16px 0'
-                }}>
-                  <div style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    background: status === 'online' ? 'rgba(34,197,94,0.15)' :
-                                status === 'busy'   ? 'rgba(251,191,36,0.15)' :
-                                'rgba(100,116,139,0.15)',
-                    color: status === 'online' ? '#4ade80' :
-                           status === 'busy'   ? '#fbbf24' : '#94a3b8',
-                    fontSize: 11, fontWeight: 600,
-                    padding: '4px 10px', borderRadius: 100,
-                  }}>
-                    <div style={{
-                      width: 5, height: 5, borderRadius: '50%',
-                      background: 'currentColor',
-                      animation: status === 'online' ? 'pulse 2s infinite' : 'none'
-                    }} />
-                    {status.toUpperCase()}
-                  </div>
-                  <span style={{ color: 'var(--gold-light)', fontSize: 13, fontWeight: 600 }}>
-                    ★ {a.rating}
-                  </span>
-                </div>
-
-                <div style={{
-                  width: '100%', height: 200,
-                  overflow: 'hidden',
-                  margin: '8px 0',
-                  background: 'linear-gradient(180deg, var(--navy-light) 0%, var(--navy-card) 100%)',
-                }}>
-                  {a.image ? (
-                    <img
-                      src={a.image}
-                      alt={a.name}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        objectPosition: 'center 25%'
-                      }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '100%', height: '100%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 72
+                {filtered.map(a => {
+                  const status = a.status || 'offline';
+                  return (
+                    <div key={a.id} style={{
+                      background: 'var(--navy-card)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 20, overflow: 'hidden',
+                      transition: 'all 0.2s', display: 'flex', flexDirection: 'column',
                     }}>
-                      {a.avatar}
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between',
+                        alignItems: 'center', padding: '14px 16px 0'
+                      }}>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          background: status === 'online' ? 'rgba(34,197,94,0.15)' :
+                                      status === 'busy'   ? 'rgba(251,191,36,0.15)' :
+                                      'rgba(100,116,139,0.15)',
+                          color: status === 'online' ? '#4ade80' :
+                                 status === 'busy'   ? '#fbbf24' : '#94a3b8',
+                          fontSize: 11, fontWeight: 600,
+                          padding: '4px 10px', borderRadius: 100,
+                        }}>
+                          <div style={{
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: 'currentColor',
+                            animation: status === 'online' ? 'pulse 2s infinite' : 'none'
+                          }} />
+                          {status.toUpperCase()}
+                        </div>
+                        <span style={{ color: 'var(--gold-light)', fontSize: 13, fontWeight: 600 }}>
+                          ★ {(a.rating || 0).toFixed(1)}
+                        </span>
+                      </div>
+
+                      <div style={{
+                        width: '100%', height: 200,
+                        overflow: 'hidden',
+                        margin: '8px 0',
+                        background: 'linear-gradient(180deg, var(--navy-light) 0%, var(--navy-card) 100%)',
+                      }}>
+                        {a.avatar ? (
+                          <img
+                            src={a.avatar}
+                            alt={a.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              objectPosition: 'center 25%'
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '100%', height: '100%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 72
+                          }}>
+                            🔮
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ padding: '0 16px 16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {a.name}
+                            {a.verified && <span style={{ color: 'var(--gold)', marginLeft: 6, fontSize: 12 }}>✓</span>}
+                          </h3>
+                          <span style={{ color: 'var(--gold-light)', fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
+                            {convert(a.rate)}/min
+                          </span>
+                        </div>
+
+                        <p style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+                          {(a.expertise || []).join(' · ')} · {a.experience} YRS
+                        </p>
+
+                        <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12, flex: 1 }}>
+                          {a.bio}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+                          {(a.languages || []).map(lang => (
+                            <span key={lang} style={{
+                              fontSize: 11, padding: '3px 10px',
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid var(--border-light)',
+                              borderRadius: 100, color: 'var(--text-muted)'
+                            }}>
+                              {lang}
+                            </span>
+                          ))}
+                        </div>
+
+                        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 14 }}>
+                          {(a.totalSessions || 0).toLocaleString()} consultations
+                        </p>
+
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => handleConsult(a, 'chat', status)}
+                            style={{
+                              flex: 1, padding: '10px',
+                              background: 'rgba(255,255,255,0.06)',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              borderRadius: 100, fontSize: 12, fontWeight: 700,
+                              letterSpacing: '0.08em', color: 'var(--text-primary)',
+                              cursor: 'pointer', transition: 'all 0.2s',
+                              fontFamily: 'var(--font-sans)',
+                            }}>
+                            CHAT
+                          </button>
+                          {status === 'busy' ? (
+                            <button onClick={() => handleConsult(a, 'notify', status)}
+                              style={{
+                                flex: 1, padding: '10px',
+                                background: 'rgba(255,255,255,0.06)',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                borderRadius: 100, fontSize: 12, fontWeight: 700,
+                                letterSpacing: '0.08em', color: 'var(--text-muted)',
+                                cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                              }}>
+                              NOTIFY
+                            </button>
+                          ) : (
+                            <button onClick={() => handleConsult(a, 'call', status)}
+                              style={{
+                                flex: 1, padding: '10px',
+                                background: status === 'offline' ? 'rgba(255,255,255,0.04)' : 'var(--gold)',
+                                border: 'none', borderRadius: 100,
+                                fontSize: 12, fontWeight: 700, letterSpacing: '0.08em',
+                                color: status === 'offline' ? 'var(--text-dim)' : 'var(--navy-deep)',
+                                cursor: status === 'offline' ? 'not-allowed' : 'pointer',
+                                fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
+                              }}>
+                              {status === 'offline' ? 'OFFLINE' : 'CALL'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div style={{ padding: '0 16px 16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {a.name}
-                      {a.verified && <span style={{ color: 'var(--gold)', marginLeft: 6, fontSize: 12 }}>✓</span>}
-                    </h3>
-                    <span style={{ color: 'var(--gold-light)', fontSize: 14, fontWeight: 600, flexShrink: 0 }}>
-                      {convert(a.rate)}/min
-                    </span>
-                  </div>
-
-                  <p style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
-                    {a.expertise.join(' · ')} · {a.experience} YRS
-                  </p>
-
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12, flex: 1 }}>
-                    {a.bio}
-                  </p>
-
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-                    {a.languages.map(lang => (
-                      <span key={lang} style={{
-                        fontSize: 11, padding: '3px 10px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-light)',
-                        borderRadius: 100, color: 'var(--text-muted)'
-                      }}>
-                        {lang}
-                      </span>
-                    ))}
-                  </div>
-
-                  <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 14 }}>
-                    {a.totalSessions.toLocaleString()} consultations
-                  </p>
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => handleConsult(a, 'chat', status)}
-                      style={{
-                        flex: 1, padding: '10px',
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        borderRadius: 100, fontSize: 12, fontWeight: 700,
-                        letterSpacing: '0.08em', color: 'var(--text-primary)',
-                        cursor: 'pointer', transition: 'all 0.2s',
-                        fontFamily: 'var(--font-sans)',
-                      }}>
-                      CHAT
-                    </button>
-                    {status === 'busy' ? (
-                      <button onClick={() => handleConsult(a, 'notify', status)}
-                        style={{
-                          flex: 1, padding: '10px',
-                          background: 'rgba(255,255,255,0.06)',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          borderRadius: 100, fontSize: 12, fontWeight: 700,
-                          letterSpacing: '0.08em', color: 'var(--text-muted)',
-                          cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                        }}>
-                        NOTIFY
-                      </button>
-                    ) : (
-                      <button onClick={() => handleConsult(a, 'call', status)}
-                        style={{
-                          flex: 1, padding: '10px',
-                          background: status === 'offline' ? 'rgba(255,255,255,0.04)' : 'var(--gold)',
-                          border: 'none', borderRadius: 100,
-                          fontSize: 12, fontWeight: 700, letterSpacing: '0.08em',
-                          color: status === 'offline' ? 'var(--text-dim)' : 'var(--navy-deep)',
-                          cursor: status === 'offline' ? 'not-allowed' : 'pointer',
-                          fontFamily: 'var(--font-sans)', transition: 'all 0.2s',
-                        }}>
-                        {status === 'offline' ? 'OFFLINE' : 'CALL'}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Coming Soon Modal */}
