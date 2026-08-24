@@ -23,6 +23,7 @@ import Panchang from './pages/Panchang';
 import AITools from './pages/AITools';
 import Puja from './pages/Puja';
 import Admin from './pages/Admin';
+import CallRoom from './pages/CallRoom';
 
 import ConsultationChat from './pages/ConsultationChat';
 import AstrologerDashboard from './pages/AstrologerDashboard';
@@ -99,6 +100,7 @@ function AppRoutes() {
       <Route path="/consultation/chat" element={<Layout><ConsultationChat /></Layout>} />
       <Route path="/astrologer/dashboard" element={<Layout><AstrologerDashboard /></Layout>} />
       <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
+      <Route path="/consultation/call" element={<Layout><CallRoom /></Layout>} />
 <Route path="/payment-policy" element={<Layout><PaymentPolicy /></Layout>} />
 <Route path="/reset-password/:token" element={<Layout><ResetPassword /></Layout>} />
 <Route path="/support" element={<Layout><Support /></Layout>} />

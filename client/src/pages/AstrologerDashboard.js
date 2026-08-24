@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -26,13 +27,14 @@ export default function AstrologerDashboard() {
   const [todaySessions, setTodaySessions] = useState(0);
   const [totalMinutes,  setTotalMinutes]  = useState(0);
 
+  // Call state
+  const [incomingCall,  setIncomingCall]  = useState(null); // { callId, userName, userSocketId }
+  const [activeCall,    setActiveCall]    = useState(null); // callId once accepted
+
   const messagesEndRef = useRef(null);
   const timerRef       = useRef(null);
+  const callContainerRef = useRef(null);
 
-  // Real astrologer ID from the logged-in account's own profile — no more
-  // hardcoded email-to-ID mapping. Any astrologer created via the Admin
-  // panel can log in normally and their dashboard will correctly resolve
-  // to their own profile here.
   const astrologerId = profile?._id;
 
   // Fetch the logged-in user's own astrologer profile
@@ -75,6 +77,21 @@ export default function AstrologerDashboard() {
         duration: 0,
         icon: '🔔'
       });
+    });
+
+    // Incoming CALL request
+    newSocket.on('incoming_call_request', (data) => {
+      setIncomingCall(data);
+      toast(`📞 Incoming call from ${data.userName}!`, {
+        duration: 0,
+        icon: '🔔'
+      });
+    });
+
+    newSocket.on('call_ended', () => {
+      setActiveCall(null);
+      setIncomingCall(null);
+      toast('Call ended 🙏');
     });
 
     newSocket.on('receive_message', (data) => {
@@ -120,6 +137,32 @@ export default function AstrologerDashboard() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Mount ZegoCloud's call UI once a call is accepted
+  useEffect(() => {
+    if (!activeCall || !callContainerRef.current) return;
+
+    const appID = Number(process.env.REACT_APP_ZEGO_APP_ID);
+    const serverSecret = process.env.REACT_APP_ZEGO_SERVER_SECRET;
+    const roomID = activeCall;
+    const userID = astrologerId;
+    const userName = profile?.displayName || user?.name || 'Astrologer';
+
+    const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+      appID, serverSecret, roomID, userID, userName
+    );
+
+    const zp = ZegoUIKitPrebuilt.create(kitToken);
+    zp.joinRoom({
+      container: callContainerRef.current,
+      scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
+      showTextChat: false,
+      onLeaveRoom: () => {
+        socket?.emit('end_call', { callId: activeCall, astrologerId });
+        setActiveCall(null);
+      }
+    });
+  }, [activeCall]);
+
   const acceptChat = () => {
     if (!incomingReq) return;
     socket.emit('accept_chat', {
@@ -145,6 +188,24 @@ export default function AstrologerDashboard() {
     socket.emit('decline_chat', { userSocketId: incomingReq.userSocketId });
     setIncomingReq(null);
     toast('Request declined');
+  };
+
+  const acceptCall = () => {
+    if (!incomingCall) return;
+    socket.emit('accept_call', {
+      callId:       incomingCall.callId,
+      userSocketId: incomingCall.userSocketId,
+      astrologerId
+    });
+    setActiveCall(incomingCall.callId);
+    setIncomingCall(null);
+  };
+
+  const declineCall = () => {
+    if (!incomingCall) return;
+    socket.emit('decline_call', { userSocketId: incomingCall.userSocketId });
+    setIncomingCall(null);
+    toast('Call declined');
   };
 
   const sendMessage = () => {
@@ -182,7 +243,6 @@ export default function AstrologerDashboard() {
     return `${m}:${sec}`;
   };
 
-  // Loading state — waiting on auth or profile fetch
   if (authLoading || profileLoading) return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
@@ -197,7 +257,6 @@ export default function AstrologerDashboard() {
     </div>
   );
 
-  // This account isn't linked to an astrologer profile
   if (profileError || !profile) return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center',
@@ -218,13 +277,18 @@ export default function AstrologerDashboard() {
     </div>
   );
 
+  // Full-screen active call — takes over the whole viewport
+  if (activeCall) {
+    return <div ref={callContainerRef} style={{ width: '100vw', height: '100vh' }} />;
+  }
+
   return (
     <div style={{
       minHeight: '100vh', background: 'var(--navy-deep)',
       paddingTop: 80
     }}>
 
-      {/* Incoming Request Popup */}
+      {/* Incoming Chat Request Popup */}
       {incomingReq && (
         <div style={{
           position: 'fixed', inset: 0,
@@ -269,6 +333,48 @@ export default function AstrologerDashboard() {
         </div>
       )}
 
+      {/* Incoming Call Request Popup */}
+      {incomingCall && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 3100, padding: 24
+        }}>
+          <div style={{
+            background: 'var(--navy-card)',
+            border: '2px solid #4ade80',
+            borderRadius: 24, padding: '40px',
+            width: '100%', maxWidth: 400,
+            textAlign: 'center',
+            animation: 'fadeUp 0.3s ease both'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📞</div>
+            <h3 style={{
+              fontFamily: 'var(--font-serif)', fontSize: 26,
+              color: 'var(--text-primary)', marginBottom: 8
+            }}>
+              Incoming Call!
+            </h3>
+            <p style={{ color: '#4ade80', fontSize: 16, marginBottom: 28 }}>
+              {incomingCall.userName}
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button className="btn-primary"
+                style={{ flex: 1, justifyContent: 'center', padding: '14px', fontSize: 15, background: '#4ade80' }}
+                onClick={acceptCall}>
+                ✅ Accept Call
+              </button>
+              <button className="btn-secondary"
+                style={{ flex: 1, padding: '14px', fontSize: 15 }}
+                onClick={declineCall}>
+                ❌ Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{
         background: 'var(--navy-dark)',
@@ -290,10 +396,10 @@ export default function AstrologerDashboard() {
           <div style={{ display: 'flex', gap: 8 }}>
             {['online', 'busy', 'offline'].map(s => (
               <button key={s}
-              onClick={() => {
-                setOnlineStatus(s);
-                socket?.emit('set_status', { astrologerId, status: s });
-              }}
+                onClick={() => {
+                  setOnlineStatus(s);
+                  socket?.emit('set_status', { astrologerId, status: s });
+                }}
                 style={{
                   padding: '8px 18px', borderRadius: 100,
                   border: '1px solid',
@@ -385,10 +491,10 @@ export default function AstrologerDashboard() {
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
               {onlineStatus === 'online'
-                ? 'You will receive a popup when a user wants to chat with you.'
+                ? 'You will receive a popup when a user wants to chat or call you.'
                 : onlineStatus === 'busy'
                 ? 'Users will see you as busy. Change to Online to receive requests.'
-                : 'You are not receiving requests. Go Online to start accepting chats.'}
+                : 'You are not receiving requests. Go Online to start accepting chats and calls.'}
             </p>
           </div>
         )}

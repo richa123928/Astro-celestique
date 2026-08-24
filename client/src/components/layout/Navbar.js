@@ -157,8 +157,8 @@ export default function Navbar() {
             </button>
           )}
 
-          <Link to="/astrologer/dashboard"
-            style={{ fontSize: 12, color: 'var(--text-dim)', marginRight: 12, textDecoration: 'none' }}>
+          <Link to="/auth"
+          style={{ fontSize: 12, color: 'var(--text-dim)', marginRight: 12, textDecoration: 'none' }}>
             Astrologer Login
           </Link>
 
@@ -191,7 +191,8 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
-          <Link to="/astrologer/dashboard" className="navbar__mobile-link" onClick={() => setMenuOpen(false)}>
+          <Link to="/auth"
+          style={{ fontSize: 12, color: 'var(--text-dim)', marginRight: 12, textDecoration: 'none' }}>
             Astrologer Login
           </Link>
           {isAuthenticated ? (

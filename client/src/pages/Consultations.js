@@ -61,6 +61,8 @@ export default function Consultations() {
     }
     if (consultMode === 'chat') {
       navigate('/consultation/chat', { state: { astrologer } });
+    } else if (consultMode === 'call') {
+      navigate('/consultation/call', { state: { astrologer } });
     } else {
       setShowComingSoon({ show: true, astrologer, mode: consultMode });
     }

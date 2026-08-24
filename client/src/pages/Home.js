@@ -25,28 +25,6 @@ const TOOLS = [
   { title: 'Daily Nakshatra',   desc: "Today's lunar mansion",               href: '/calculators/nakshatra',  icon: '⚡' },
 ];
 
-const ASTROLOGERS = [
-  { 
-    id: 1,
-    name: 'Shukramuni Ji', 
-    expertise: 'Vedic · Brighu Nadi · Remedies', 
-    years: 18, 
-    rate: 30, 
-    rating: 4.9, 
-    status: 'online',
-    image: require('../assets/images/shukramuni.png')
-  },
-  { 
-    id: 2,
-    name: 'Kaalchakra Manoj Gupta', 
-    expertise: 'Ancient Vedic Astrology · Remedies', 
-    years: 9, 
-    rate: 30, 
-    rating: 4.7, 
-    status: 'online',
-    image: require('../assets/images/manoj.png')
-  },
-];
 
 const FILTERS = ['ALL', 'VEDIC', 'LOVE & MARRIAGE', 'CAREER', 'TAROT', 'NUMEROLOGY', 'NADI', 'VASTU'];
 
@@ -143,19 +121,17 @@ export default function Home() {
   const [activeFilter, setActiveFilter]     = useState('ALL');
   const [cosmicBrief,  setCosmicBrief]      = useState(null);
 
-  const [liveStatus, setLiveStatus] = useState({});
+    const [homeAstrologers, setHomeAstrologers] = useState([]);
 
 useEffect(() => {
-  const checkStatus = async () => {
+  const fetchAstrologers = async () => {
     try {
-      const { data } = await axios.get('/api/astrologers/status');
-      setLiveStatus({
-        '1': data.onlineAstrologers.includes('1') ? 'online' : 'offline'
-      });
+      const { data } = await axios.get('/api/astrologers');
+      setHomeAstrologers(data.astrologers.slice(0, 4)); // show a handful on the homepage
     } catch (err) {}
   };
-  checkStatus();
-  const interval = setInterval(checkStatus, 5000);
+  fetchAstrologers();
+  const interval = setInterval(fetchAstrologers, 5000);
   return () => clearInterval(interval);
 }, []);
 
@@ -311,18 +287,22 @@ useEffect(() => {
             ))}
           </div>
 
-          <div className="astro-grid">
-            {ASTROLOGERS.map((a, i) => (
-              <div className="astro-card card" key={i}>
+                    <div className="astro-grid">
+            {homeAstrologers.length === 0 ? (
+              <p className="text-muted" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px 0' }}>
+                No astrologers available right now.
+              </p>
+            ) : homeAstrologers.map((a) => (
+              <div className="astro-card card" key={a.id}>
                 <div className="astro-card__top">
-                  <span className={`status-badge status-badge--${a.id === 1 ? (liveStatus['1'] || 'offline') : a.status}`}>
-                  {(a.id === 1 ? (liveStatus['1'] || 'offline') : a.status).toUpperCase()}
-                </span>
-                  <span className="astro-card__rating">★ {a.rating}</span>
+                  <span className={`status-badge status-badge--${a.status}`}>
+                    {a.status.toUpperCase()}
+                  </span>
+                  <span className="astro-card__rating">★ {(a.rating || 0).toFixed(1)}</span>
                 </div>
                 <div className="astro-card__avatar" style={{ padding: 0, overflow: 'hidden' }}>
-                  {a.image ? (
-                    <img src={a.image} alt={a.name}
+                  {a.avatar ? (
+                    <img src={a.avatar} alt={a.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 25%' }} />
                   ) : (
                     <span>{a.name.split(' ').map(n => n[0]).join('')}</span>
@@ -332,7 +312,7 @@ useEffect(() => {
                   <span className="astro-card__price gold">{convert(a.rate)}/min</span>
                   <h4 className="astro-card__name">{a.name}</h4>
                   <p className="astro-card__exp text-muted">
-                    {a.expertise} · {a.years} YRS
+                    {(a.expertise || []).join(' · ')} · {a.experience} YRS
                   </p>
                 </div>
                 <div className="astro-card__actions">

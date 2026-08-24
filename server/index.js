@@ -137,6 +137,52 @@ io.on('connection', (socket) => {
     });
   });
 
+    // User requests a CALL with astrologer (same pattern as chat_request)
+  socket.on('call_request', ({ astrologerId, userId, userName }) => {
+    const astrologerSocketId = onlineAstrologers[astrologerId];
+    if (!astrologerSocketId) {
+      socket.emit('call_error', { message: 'Astrologer is currently offline' });
+      return;
+    }
+    const callId = `call_${userId}_${astrologerId}_${Date.now()}`;
+
+    io.to(astrologerSocketId).emit('incoming_call_request', {
+      callId,
+      userId,
+      userName,
+      userSocketId: socket.id
+    });
+
+    socket.emit('call_request_sent', { callId, message: 'Waiting for astrologer to accept...' });
+    console.log(`Call request: ${userName} → Astrologer ${astrologerId}`);
+  });
+
+  // Astrologer accepts the call
+  socket.on('accept_call', ({ callId, userSocketId, astrologerId }) => {
+    astrologerStatusStore.setBusy(astrologerId.toString());
+    io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
+
+    io.to(userSocketId).emit('call_started', { callId });
+    socket.emit('call_started', { callId });
+    console.log(`Call started: ${callId}`);
+  });
+
+  // Astrologer declines the call
+  socket.on('decline_call', ({ userSocketId }) => {
+    io.to(userSocketId).emit('call_declined', {
+      message: 'Astrologer is busy. Please try again later.'
+    });
+  });
+
+  // Either party ends the call
+  socket.on('end_call', ({ callId, astrologerId }) => {
+    if (astrologerId) {
+      astrologerStatusStore.setAvailable(astrologerId.toString());
+      io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
+    }
+    io.emit('call_ended', { callId }); // broadcast so both sides know to leave
+  });
+
   // Send message with translation
   socket.on('send_message', async ({ sessionId, message, senderType, senderName, userLanguage, astrologerLanguage, recipientName }) => {
   const { translateMessage } = require('./utils/translate');
