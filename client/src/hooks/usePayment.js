@@ -9,6 +9,7 @@ export default function usePayment() {
     amount,
     purpose,
     pujaId,
+    orderId,
     description,
     onSuccess,
     onFailure
@@ -40,6 +41,7 @@ export default function usePayment() {
               razorpay_signature:  response.razorpay_signature,
               purpose,
               pujaId,
+              orderId,
               amount
             });
 

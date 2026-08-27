@@ -2,6 +2,7 @@ const Razorpay = require('razorpay');
 const crypto   = require('crypto');
 const User     = require('../models/User');
 const Puja     = require('../models/Puja');
+const Order    = require('../models/Order');
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
@@ -90,6 +91,21 @@ exports.verifyPayment = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Puja payment confirmed!',
+      });
+    }
+        if (purpose === 'remedies' && req.body.orderId) {
+      // Update remedies order payment status
+      const order = await Order.findByIdAndUpdate(req.body.orderId, {
+        paymentStatus:  'paid',
+        paymentId:      razorpay_payment_id,
+        paymentGateway: 'razorpay',
+        status:         'confirmed'
+      }, { new: true });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Order payment confirmed!',
+        order
       });
     }
 

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import usePayment from '../hooks/usePayment';
 import { useCurrency } from '../context/CurrencyContext';
 import toast from 'react-hot-toast';
 
@@ -117,9 +119,65 @@ const REMEDIES = [
 
 export default function Remedies() {
   const { convert }                         = useCurrency();
+  const { initiatePayment }                 = usePayment();
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [selectedItem,   setSelectedItem]   = useState(null);
   const [cart,           setCart]           = useState([]);
+  const [showCheckout,   setShowCheckout]   = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [address, setAddress] = useState({
+    fullName: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: ''
+  });
+
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+  const handleAddressChange = (e) => {
+    setAddress(a => ({ ...a, [e.target.name]: e.target.value }));
+  };
+
+  const handleCheckout = async (e) => {
+    e.preventDefault();
+
+    const required = ['fullName', 'phone', 'line1', 'city', 'state', 'pincode'];
+    const missing  = required.filter(f => !address[f]?.trim());
+    if (missing.length) {
+      toast.error('Please fill all required address fields');
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      // Step 1 — create pending order on backend (server recalculates amount)
+      const { data } = await axios.post('/api/remedies/order', {
+        items: cart.map(item => ({
+          itemId:   item.id,
+          name:     item.name,
+          price:    item.price,
+          qty:      item.qty,
+          category: item.category
+        })),
+        shippingAddress: address
+      });
+
+      // Step 2 — open Razorpay checkout
+      await initiatePayment({
+        amount:      data.order.amount,
+        purpose:     'remedies',
+        orderId:     data.order._id,
+        description: `Astro Celestique — ${cart.length} item(s)`,
+        onSuccess:   () => {
+          setCart([]);
+          setShowCheckout(false);
+          setAddress({ fullName: '', phone: '', line1: '', line2: '', city: '', state: '', pincode: '' });
+        }
+      });
+
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create order. Please try again.');
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   const filtered = activeCategory === 'ALL'
     ? REMEDIES
@@ -186,7 +244,7 @@ export default function Remedies() {
           {/* Cart */}
           {cart.length > 0 && (
             <button
-              onClick={() => toast.success(`${cart.length} items in cart. Payment integration coming soon!`)}
+              onClick={() => setShowCheckout(true)}
               style={{
                 marginLeft: 'auto', padding: '8px 20px', borderRadius: 100,
                 background: 'var(--gold)', border: 'none',
@@ -403,6 +461,79 @@ export default function Remedies() {
               onClick={() => { addToCart(selectedItem); setSelectedItem(null); }}>
               Add to Cart — {convert(selectedItem.price)}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {showCheckout && (
+        <div
+          onClick={() => setShowCheckout(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 24
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--navy-card)', border: '1px solid var(--border-light)',
+              borderRadius: 20, maxWidth: 480, width: '100%',
+              maxHeight: '90vh', overflowY: 'auto', padding: 32
+            }}>
+            <h2 style={{
+              fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 400,
+              color: 'var(--text-primary)', marginBottom: 8
+            }}>
+              Checkout
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 24 }}>
+              {cart.length} item(s) · Total: <strong style={{ color: 'var(--gold-light)' }}>{convert(cartTotal)}</strong>
+            </p>
+
+            <form onSubmit={handleCheckout}>
+              {[
+                { name: 'fullName', label: 'Full Name',    required: true },
+                { name: 'phone',    label: 'Phone Number', required: true },
+                { name: 'line1',   label: 'Address Line 1', required: true },
+                { name: 'line2',   label: 'Address Line 2 (optional)', required: false },
+                { name: 'city',    label: 'City',    required: true },
+                { name: 'state',   label: 'State',   required: true },
+                { name: 'pincode', label: 'Pincode', required: true },
+              ].map(field => (
+                <div key={field.name} style={{ marginBottom: 14 }}>
+                  <label style={{
+                    display: 'block', fontSize: 12, color: 'var(--text-dim)',
+                    marginBottom: 6, letterSpacing: '0.04em'
+                  }}>
+                    {field.label.toUpperCase()}
+                  </label>
+                  <input
+                    name={field.name}
+                    value={address[field.name]}
+                    onChange={handleAddressChange}
+                    required={field.required}
+                    style={{
+                      width: '100%', padding: '10px 14px', borderRadius: 10,
+                      border: '1px solid var(--border-light)', background: 'var(--navy-deep)',
+                      color: 'var(--text-primary)', fontSize: 14
+                    }}
+                  />
+                </div>
+              ))}
+
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={checkoutLoading}
+                style={{
+                  width: '100%', justifyContent: 'center', padding: '14px',
+                  fontSize: 15, marginTop: 10, opacity: checkoutLoading ? 0.6 : 1,
+                  cursor: checkoutLoading ? 'not-allowed' : 'pointer'
+                }}>
+                {checkoutLoading ? 'Processing...' : `Pay ${convert(cartTotal)}`}
+              </button>
+            </form>
           </div>
         </div>
       )}

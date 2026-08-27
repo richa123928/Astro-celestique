@@ -3,7 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
+import { useCurrency } from '../context/CurrencyContext';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 export default function CallRoom() {
   const { user } = useAuth();
@@ -14,6 +16,9 @@ export default function CallRoom() {
   const [status, setStatus] = useState('idle'); // idle | requesting | waiting | in-call | declined | ended
   const [callId, setCallId] = useState(null);
   const [socket, setSocket] = useState(null);
+  const { convert } = useCurrency();
+  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
+  const billingRef = useRef(null);
 
   const containerRef = useRef(null);
 
@@ -28,9 +33,29 @@ export default function CallRoom() {
     });
 
     newSocket.on('call_started', ({ callId: startedCallId }) => {
-      setCallId(startedCallId);
-      setStatus('in-call');
-    });
+  setCallId(startedCallId);
+  setStatus('in-call');
+
+  // Start billing — deduct per minute, same pattern as chat
+  billingRef.current = setInterval(async () => {
+    try {
+      const { data } = await axios.post('/api/consultation/deduct', {
+        amount: astrologer.rate,
+        astrologerName: astrologer.name
+      });
+      setWalletBalance(data.walletBalance);
+      if (data.walletBalance < astrologer.rate) {
+        toast.error('Low wallet balance! Please add funds.');
+      }
+      if (data.walletBalance <= 0) {
+        socket.emit('end_call', { callId: startedCallId, astrologerId: astrologer.id });
+        toast.error('Wallet empty! Call ended.');
+      }
+    } catch (err) {
+      console.error('Billing error:', err);
+    }
+  }, 60000); // every minute
+});
 
     newSocket.on('call_declined', ({ message }) => {
       setStatus('declined');
@@ -38,6 +63,7 @@ export default function CallRoom() {
     });
 
     newSocket.on('call_ended', () => {
+      if (billingRef.current) clearInterval(billingRef.current);
       setStatus('ended');
     });
 
@@ -46,7 +72,10 @@ export default function CallRoom() {
       navigate('/consultations');
     });
 
-    return () => newSocket.disconnect();
+    return () => {
+      newSocket.disconnect();
+      if (billingRef.current) clearInterval(billingRef.current);
+    };
   }, []);
 
   // Once in-call, mount the ZegoCloud prebuilt UI into the container
@@ -79,14 +108,18 @@ export default function CallRoom() {
   }, [status, callId]);
 
   const requestCall = () => {
-    if (!user) { navigate('/auth'); return; }
-    setStatus('requesting');
-    socket.emit('call_request', {
-      astrologerId: astrologer.id.toString(),
-      userId: user._id,
-      userName: user.name
-    });
-  };
+  if (!user) { navigate('/auth'); return; }
+  if (walletBalance < astrologer.rate) {
+    toast.error(`Insufficient balance! You need at least ${convert(astrologer.rate)} to start.`);
+    return;
+  }
+  setStatus('requesting');
+  socket.emit('call_request', {
+    astrologerId: astrologer.id.toString(),
+    userId: user._id,
+    userName: user.name
+  });
+};
 
   if (!astrologer) return null;
 
