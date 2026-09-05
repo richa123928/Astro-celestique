@@ -32,6 +32,7 @@ import PaymentPolicy from './pages/PaymentPolicy';
 import Support from './pages/Support';
 import ReferAndEarn from './pages/ReferAndEarn';
 import About from './pages/About';
+import MyAccount from './pages/MyAccount';
 import ResetPassword from './pages/ResetPassword';
 
 // Protected Route
@@ -108,6 +109,7 @@ function AppRoutes() {
 <Route path="/support" element={<Layout><Support /></Layout>} />
 <Route path="/refer" element={<Layout><ReferAndEarn /></Layout>} />
 <Route path="/about" element={<Layout><About /></Layout>} />
+<Route path="/my-account" element={<Layout><MyAccount /></Layout>} />
       <Route path="*"                    element={<Navigate to="/" replace />} />
     </Routes>
   );

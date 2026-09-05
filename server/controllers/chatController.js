@@ -115,27 +115,6 @@ exports.getChatHistory = async (req, res) => {
   }
 };
 
-// @desc    Add funds to wallet
-// @route   POST /api/chat/add-funds
-exports.addFunds = async (req, res) => {
-  try {
-    const { amount } = req.body;
-    const user = await User.findById(req.user._id);
-    user.walletBalance += amount;
-    await user.save();
-    res.status(200).json({
-      success: true,
-      walletBalance: user.walletBalance,
-      message: `₹${amount} added to wallet`
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: err.message
-    });
-  }
-};
-
 // @desc    Support chat with AI
 // @route   POST /api/chat/support
 exports.sendSupportMessage = async (req, res) => {

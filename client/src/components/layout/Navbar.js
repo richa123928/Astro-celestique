@@ -209,6 +209,12 @@ export default function Navbar() {
             </span>
           )}
           {isAuthenticated && (
+            <Link to="/my-account" onClick={() => setMenuOpen(false)}
+            style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 8, textDecoration: 'none' }}>
+              📦 My Orders & Bookings
+            </Link>
+          )}
+          {isAuthenticated && (
             <Link to="/refer" onClick={() => setMenuOpen(false)}
             style={{ fontSize: 13, color: 'var(--gold-light)', marginBottom: 8, textDecoration: 'none' }}>
               🎁 Refer & Earn

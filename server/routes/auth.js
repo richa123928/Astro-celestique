@@ -6,7 +6,6 @@ const {
   login,
   getMe,
   updateCurrency,
-  updateWallet,
   forgotPassword,
   resetPassword
 } = require('../controllers/authController');
@@ -45,7 +44,6 @@ router.post('/register', registerLimiter, register);
 router.post('/login', loginLimiter, login);
 router.get('/me', protect, getMe);
 router.put('/currency', protect, updateCurrency);
-router.put('/wallet', protect, updateWallet);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.put('/reset-password/:resettoken', resetPassword);
 
