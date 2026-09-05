@@ -181,19 +181,19 @@ Return ONLY this JSON:
   "analysis": "3 sentences about Mangal Dosha for ${sign?.en} and remedies"
 }`,
 
-    'moon-phase': `You are a Vedic astrologer. Real data for ${data.date || new Date().toISOString().split('T')[0]}: Moon phase is ${moonPhaseData.phase}, Tithi is ${moonPhaseData.tithi}.
+    'moon-phase': `You are a Vedic astrologer. Real data for ${data.date || new Date().toISOString().split('T')[0]}: Moon phase is ${moonPhaseData?.phase}, Tithi is ${moonPhaseData?.tithi}.
 Return ONLY this JSON:
 {
-  "mainResult": "${moonPhaseData.phase}",
+  "mainResult": "${moonPhaseData?.phase}",
   "mainLabel": "MOON PHASE",
   "details": [
-    {"label": "Phase",        "value": "${moonPhaseData.phase}"},
-    {"label": "Tithi",        "value": "${moonPhaseData.tithi}"},
-    {"label": "Energy",       "value": "type of cosmic energy for ${moonPhaseData.phase}"},
-    {"label": "Best For",     "value": "3 activities suited to ${moonPhaseData.phase}"},
-    {"label": "Avoid",        "value": "2 activities to avoid during ${moonPhaseData.phase}"}
+    {"label": "Phase",        "value": "${moonPhaseData?.phase}"},
+    {"label": "Tithi",        "value": "${moonPhaseData?.tithi}"},
+    {"label": "Energy",       "value": "type of cosmic energy for ${moonPhaseData?.phase}"},
+    {"label": "Best For",     "value": "3 activities suited to ${moonPhaseData?.phase}"},
+    {"label": "Avoid",        "value": "2 activities to avoid during ${moonPhaseData?.phase}"}
   ],
-  "analysis": "3 sentences about the spiritual significance of ${moonPhaseData.phase} (${moonPhaseData.tithi})"
+  "analysis": "3 sentences about the spiritual significance of ${moonPhaseData?.phase} (${moonPhaseData?.tithi})"
 }`,
 
     'compatibility-kundli': `You are a Vedic astrologer. Real computed compatibility data for:
