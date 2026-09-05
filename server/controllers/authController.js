@@ -1,50 +1,278 @@
-const express = require('express');
-const router = express.Router();
-const rateLimit = require('express-rate-limit');
-const {
-  register,
-  login,
-  getMe,
-  updateCurrency,
-  forgotPassword,
-  resetPassword
-} = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const crypto = require('crypto');
+const User = require('../models/User');
+const { sendWelcomeEmail, sendEmail } = require('../utils/sendEmail');
+const { getBonusAmount } = require('../utils/bonusAmounts');
 
-// Brute-force protection: 5 login attempts per 15 min per IP.
-// Deliberately strict — a real user mistyping their password a few times
-// is not the scenario this guards against.
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' }
-});
+// Generates a short, unique, human-shareable referral code
+async function generateReferralCode(name) {
+  const base = (name || 'USER').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5) || 'USER';
+  let code;
+  let exists = true;
+  while (exists) {
+    const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+    code = `${base}${suffix}`;
+    exists = await User.exists({ referralCode: code });
+  }
+  return code;
+}
 
-// Prevents scripted mass-account creation from a single IP
-const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many accounts created from this network. Please try again later.' }
-});
+// @desc    Register user
+// @route   POST /api/auth/register
+exports.register = async (req, res) => {
+  try {
+    const { name, email, password, currency, referralCode } = req.body;
 
-// Prevents email-flooding a target inbox with reset links
-const forgotPasswordLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 3,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many reset requests. Please check your inbox or try again later.' }
-});
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name, email and password'
+      });
+    }
 
-router.post('/register', registerLimiter, register);
-router.post('/login', loginLimiter, login);
-router.get('/me', protect, getMe);
-router.put('/currency', protect, updateCurrency);
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
-router.put('/reset-password/:resettoken', resetPassword);
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already registered'
+      });
+    }
 
-module.exports = router;
+    const userCurrency = ['INR', 'USD', 'EUR', 'GBP'].includes(currency) ? currency : 'INR';
+    const welcomeBonus = getBonusAmount(userCurrency);
+
+    // If a valid referral code was supplied, link this user to their referrer.
+    // The referrer's bonus is NOT credited here — only later, when this user
+    // completes their first wallet top-up (see paymentController.verifyPayment).
+    let referredBy = null;
+    if (referralCode) {
+      const referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
+      if (referrer) referredBy = referrer._id;
+    }
+
+    const user = new User({
+      name,
+      email,
+      password,
+      currency:      userCurrency,
+      walletBalance: welcomeBonus,
+      referralCode:  await generateReferralCode(name),
+      referredBy
+    });
+    await user.save();
+
+    const token = user.getSignedJwtToken();
+    // Send welcome email
+    sendWelcomeEmail(user).catch(err => console.log('Welcome email error:', err.message));
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        walletBalance: user.walletBalance,
+        currency: user.currency,
+        referralCode: user.referralCode
+      }
+    });
+  } catch (err) {
+    console.error('Register error:', err.message);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+// @desc    Login user
+// @route   POST /api/auth/login
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
+      });
+    }
+
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    const token = user.getSignedJwtToken();
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        walletBalance: user.walletBalance,
+        currency: user.currency
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err.message);
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+// @desc    Get current logged in user
+// @route   GET /api/auth/me
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+      success: true,
+      user
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+// @desc    Update currency preference
+// @route   PUT /api/auth/currency
+exports.updateCurrency = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { currency: req.body.currency },
+      { new: true }
+    );
+    res.status(200).json({
+      success: true,
+      user
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+// @desc    Request a password reset email
+// @route   POST /api/auth/forgot-password
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    // Always return the same success message whether or not the email
+    // exists — prevents leaking which emails are registered
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: 'If an account exists with that email, a reset link has been sent.'
+      });
+    }
+
+    // Generate a random token, store only its hash (never the raw token)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+    const emailSent = await sendEmail({
+      to: user.email,
+      subject: '🔑 Reset your Astro Celestique password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0d1528; color: #eee8d5; padding: 32px; border-radius: 16px;">
+          <div style="text-align: center; margin-bottom: 32px;">
+            <h1 style="color: #e8b460; font-size: 28px; margin: 0;">◉ Astro Celestique</h1>
+          </div>
+          <h2 style="color: #eee8d5;">Password Reset Requested</h2>
+          <p style="color: #8899aa; line-height: 1.7;">
+            Hi ${user.name}, we received a request to reset your password. Click the button below to choose a new one — this link expires in 10 minutes.
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${resetUrl}" style="background: #c9963c; color: #0a0f1e; padding: 14px 32px; border-radius: 100px; text-decoration: none; font-weight: bold; font-size: 15px;">
+              Reset Password →
+            </a>
+          </div>
+          <p style="color: #445566; font-size: 13px;">
+            If you didn't request this, you can safely ignore this email — your password won't be changed.
+          </p>
+        </div>
+      `
+    });
+
+    if (!emailSent) {
+      // Roll back the token so a broken email doesn't leave a dangling reset link
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save();
+      return res.status(500).json({ success: false, message: 'Could not send reset email. Please try again.' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'If an account exists with that email, a reset link has been sent.'
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+    res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
+  }
+};
+
+// @desc    Reset password using the emailed token
+// @route   PUT /api/auth/reset-password/:resettoken
+exports.resetPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'This reset link is invalid or has expired.' });
+    }
+
+    user.password = password; // pre-save hook hashes this automatically
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Password reset successful. You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err.message);
+    res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
+  }
+};
