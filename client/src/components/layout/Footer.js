@@ -10,28 +10,18 @@ const FOOTER_LINKS = {
     { label: 'Daily Horoscope',  href: '/horoscopes/daily' },
     { label: 'Free Kundli',      href: '/kundli' },
     { label: 'Kundli Matching',  href: '/compatibility' },
-    { label: 'Compatibility',    href: '/compatibility' },
     { label: 'Panchang',         href: '/panchang' },
   ],
   CONSULTATIONS: [
-    { label: 'Chat',                  href: '/consultations' },
-    { label: 'Call',                  href: '/consultations' },
-    { label: 'Video',                 href: '/consultations' },
+    { label: 'Consultations',         href: '/consultations' },
     { label: 'Live Puja',             href: '/puja' },
-    { label: 'Become an Astrologer',  href: '/join' },
-  ],
-  KNOWLEDGE: [
-    { label: 'Vedic Magazine',    href: '/magazine' },
-    { label: 'Festival Calendar', href: '/calendar' },
-    { label: 'Glossary',          href: '/glossary' },
-    { label: 'Learning Hub',      href: '/learn' },
   ],
   COMPANY: [
     { label: 'About Us',  href: '/about' },
-    { label: 'Careers',   href: '/careers' },
     { label: 'Privacy',   href: '/privacy' },
     { label: 'Terms',     href: '/payment-policy' },
     { label: 'Support',   href: '/support' },
+    { label: 'Refer & Earn', href: '/refer' },
 ],
 };
 

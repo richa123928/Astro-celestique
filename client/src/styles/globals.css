@@ -74,6 +74,10 @@ input, select, textarea {
   padding: 0 24px;
 }
 
+@media (max-width: 480px) {
+  .container { padding: 0 14px; }
+}
+
 .serif {
   font-family: var(--font-serif);
 }

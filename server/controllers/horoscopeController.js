@@ -61,7 +61,8 @@ Return ONLY this JSON structure:
         }
       ],
       temperature: 0.8,
-      max_tokens: 1024,
+      max_tokens: 1600,
+      reasoning_format: 'hidden',
     });
 
     const text    = completion.choices[0].message.content;

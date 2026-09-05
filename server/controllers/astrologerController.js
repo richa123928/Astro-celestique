@@ -1,4 +1,5 @@
 const Astrologer = require('../models/Astrologer');
+const Earning = require('../models/Earning');
 const astrologerStatusStore = require('../utils/astrologerStatusStore');
 
 // @desc    Get all active astrologers, with live online/busy status merged in
@@ -64,4 +65,41 @@ exports.getMyProfile = async (req, res) => {
 exports.getStatus = (req, res) => {
   const { onlineAstrologers, busyAstrologers } = astrologerStatusStore.getStatusSnapshot();
   res.json({ success: true, onlineAstrologers, busyAstrologers });
+};
+
+// @desc    Real today's stats (sessions, minutes, earnings) — from the DB,
+//          not local component state that resets on refresh
+// @route   GET /api/astrologers/me/today-stats
+exports.getTodayStats = async (req, res) => {
+  try {
+    if (req.user.role !== 'astrologer') {
+      return res.status(403).json({ success: false, message: 'Not registered as an astrologer' });
+    }
+
+    const astrologer = await Astrologer.findOne({ user: req.user.id });
+    if (!astrologer) {
+      return res.status(404).json({ success: false, message: 'No astrologer profile found for this account' });
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const todaysEarnings = await Earning.find({
+      astrologer: astrologer._id,
+      createdAt:  { $gte: startOfToday }
+    });
+
+    const totalMinutes  = todaysEarnings.reduce((sum, e) => sum + e.minutesBilled, 0);
+    const totalEarnings = todaysEarnings.reduce((sum, e) => sum + e.amount, 0);
+    const todaySessions = new Set(todaysEarnings.map(e => e.sessionId)).size;
+
+    res.status(200).json({
+      success: true,
+      todaySessions,
+      totalMinutes,
+      todaysEarnings: totalEarnings
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };

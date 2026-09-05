@@ -107,7 +107,7 @@ export default function Navbar() {
           style={{ position: 'relative' }}>
             <span>🌐</span>
             <span>{timezone}</span>
-            <span style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 2 }}>{currentTime}</span>
+            <span className="tz-clock" style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 2 }}>{currentTime}</span>
             <span className="currency-arrow">▾</span>
             {timezoneOpen && (
               <div className="currency-dropdown" style={{ minWidth: 200, maxHeight: 320, overflowY: 'auto' }}>
@@ -133,7 +133,7 @@ export default function Navbar() {
           {/* Auth */}
           {isAuthenticated ? (
   <>
-    <span style={{
+    <span className="navbar__wallet" style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
       fontSize: 13, color: 'var(--gold-light)',
       background: 'rgba(201,150,60,0.1)',
@@ -143,7 +143,7 @@ export default function Navbar() {
     }}>
       💰 {convert(user?.walletBalance || 0)}
     </span>
-    <button className="btn-ghost" onClick={() => { logout(); setMenuOpen(false); }}>
+    <button className="btn-ghost navbar__logout" onClick={() => { logout(); setMenuOpen(false); }}>
       Logout
     </button>
   </>
@@ -158,6 +158,7 @@ export default function Navbar() {
           )}
 
           <Link to="/auth"
+          className="navbar__astrologer-link"
           style={{ fontSize: 12, color: 'var(--text-dim)', marginRight: 12, textDecoration: 'none' }}>
             Astrologer Login
           </Link>
@@ -195,6 +196,24 @@ export default function Navbar() {
           style={{ fontSize: 12, color: 'var(--text-dim)', marginRight: 12, textDecoration: 'none' }}>
             Astrologer Login
           </Link>
+          {isAuthenticated && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 13, color: 'var(--gold-light)',
+              background: 'rgba(201,150,60,0.1)',
+              border: '1px solid rgba(201,150,60,0.25)',
+              padding: '8px 12px', borderRadius: 100,
+              marginBottom: 8, width: 'fit-content'
+            }}>
+              💰 {convert(user?.walletBalance || 0)}
+            </span>
+          )}
+          {isAuthenticated && (
+            <Link to="/refer" onClick={() => setMenuOpen(false)}
+            style={{ fontSize: 13, color: 'var(--gold-light)', marginBottom: 8, textDecoration: 'none' }}>
+              🎁 Refer & Earn
+            </Link>
+          )}
           {isAuthenticated ? (
             <button className="btn-ghost" onClick={() => { logout(); setMenuOpen(false); }}>
               Logout

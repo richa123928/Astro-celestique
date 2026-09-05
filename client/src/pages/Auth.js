@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import useIsMobile from '../hooks/useIsMobile';
 
 export default function Auth() {
+  const [searchParams] = useSearchParams();
   const [mode,    setMode]    = useState('login'); // 'login' | 'register' | 'forgot'
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [form,    setForm]    = useState({ name: '', email: '', password: '' });
+  const [form,    setForm]    = useState({
+    name: '', email: '', password: '',
+    referralCode: searchParams.get('ref') || ''
+  });
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent,  setForgotSent]  = useState(false);
   const { login, register }   = useAuth();
+  const { currency }          = useCurrency();
   const navigate              = useNavigate();
   const isMobile = useIsMobile();
   
@@ -25,8 +31,8 @@ export default function Auth() {
       toast.success('Welcome back!');
       navigate(user.role === 'astrologer' ? '/astrologer/dashboard' : '/');
     } else {
-      await register(form.name, form.email, form.password);
-      toast.success('Account created successfully!');
+      await register(form.name, form.email, form.password, currency, form.referralCode);
+      toast.success('Account created! Welcome bonus added to your wallet 🎉');
       navigate('/');
     }
   } catch (err) {
@@ -147,6 +153,18 @@ export default function Auth() {
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   />
                 </div>
+
+                {mode === 'register' && (
+                  <div className="auth-field">
+                    <label>Referral Code (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Have a friend's code? Enter it here"
+                      value={form.referralCode}
+                      onChange={e => setForm(f => ({ ...f, referralCode: e.target.value.toUpperCase() }))}
+                    />
+                  </div>
+                )}
 
                 <div className="auth-field">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

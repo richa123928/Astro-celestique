@@ -48,6 +48,24 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  referralBonusCredited: {
+    type: Boolean,
+    default: false
+  },
+  hasCompletedFirstTransaction: {
+    type: Boolean,
+    default: false
+  },
   role: {
     type: String,
     enum: ['user', 'astrologer', 'admin'],

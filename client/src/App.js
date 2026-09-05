@@ -30,6 +30,8 @@ import AstrologerDashboard from './pages/AstrologerDashboard';
 import Privacy from './pages/Privacy';
 import PaymentPolicy from './pages/PaymentPolicy';
 import Support from './pages/Support';
+import ReferAndEarn from './pages/ReferAndEarn';
+import About from './pages/About';
 import ResetPassword from './pages/ResetPassword';
 
 // Protected Route
@@ -104,6 +106,8 @@ function AppRoutes() {
 <Route path="/payment-policy" element={<Layout><PaymentPolicy /></Layout>} />
 <Route path="/reset-password/:token" element={<Layout><ResetPassword /></Layout>} />
 <Route path="/support" element={<Layout><Support /></Layout>} />
+<Route path="/refer" element={<Layout><ReferAndEarn /></Layout>} />
+<Route path="/about" element={<Layout><About /></Layout>} />
       <Route path="*"                    element={<Navigate to="/" replace />} />
     </Routes>
   );

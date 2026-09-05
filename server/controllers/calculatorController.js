@@ -276,7 +276,8 @@ Return ONLY this JSON:
       { role: 'user',   content: prompts[type] }
     ],
     temperature: 0.7,
-    max_tokens: 1024,
+    max_tokens: 1600,
+    reasoning_format: 'hidden',
   });
 
   const text    = completion.choices[0].message.content;

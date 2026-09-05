@@ -26,6 +26,7 @@ export default function AstrologerDashboard() {
   const [isTyping,      setIsTyping]      = useState(false);
   const [todaySessions, setTodaySessions] = useState(0);
   const [totalMinutes,  setTotalMinutes]  = useState(0);
+  const [todaysEarnings,setTodaysEarnings]= useState(0);
 
   // Call state
   const [incomingCall,  setIncomingCall]  = useState(null); // { callId, userName, userSocketId }
@@ -54,7 +55,21 @@ export default function AstrologerDashboard() {
     };
 
     fetchProfile();
+    fetchTodayStats();
   }, [authLoading, isAuthenticated]);
+
+  // Real today's stats from the database — replaces local counters that
+  // used to reset to 0 on every page refresh
+  const fetchTodayStats = async () => {
+    try {
+      const { data } = await axios.get('/api/astrologers/me/today-stats');
+      setTodaySessions(data.todaySessions);
+      setTotalMinutes(data.totalMinutes);
+      setTodaysEarnings(data.todaysEarnings);
+    } catch (err) {
+      console.error('Failed to load today stats:', err.message);
+    }
+  };
 
   // Socket connection — only once we have a real astrologerId
   useEffect(() => {
@@ -120,8 +135,7 @@ export default function AstrologerDashboard() {
     newSocket.on('session_ended', () => {
       if (timerRef.current) clearInterval(timerRef.current);
       setSessionActive(false);
-      setTodaySessions(s => s + 1);
-      setTotalMinutes(m => m + Math.floor(sessionTime / 60));
+      fetchTodayStats();
       toast('Session ended by user 🙏');
       setMessages([]);
       setSessionId(null);
@@ -168,7 +182,8 @@ export default function AstrologerDashboard() {
     socket.emit('accept_chat', {
       sessionId:    incomingReq.sessionId,
       userSocketId: incomingReq.userSocketId,
-      astrologerId
+      astrologerId,
+      userId: incomingReq.userId
     });
     setSessionId(incomingReq.sessionId);
     setUserSocketId(incomingReq.userSocketId);
@@ -195,7 +210,8 @@ export default function AstrologerDashboard() {
     socket.emit('accept_call', {
       callId:       incomingCall.callId,
       userSocketId: incomingCall.userSocketId,
-      astrologerId
+      astrologerId,
+      userId: incomingCall.userId
     });
     setActiveCall(incomingCall.callId);
     setIncomingCall(null);
@@ -229,8 +245,7 @@ export default function AstrologerDashboard() {
     if (timerRef.current) clearInterval(timerRef.current);
     socket?.emit('end_session', { sessionId });
     setSessionActive(false);
-    setTodaySessions(s => s + 1);
-    setTotalMinutes(m => m + Math.floor(sessionTime / 60));
+    fetchTodayStats();
     setMessages([]);
     setSessionId(null);
     setSessionTime(0);
@@ -444,7 +459,7 @@ export default function AstrologerDashboard() {
           {[
             { label: "Today's Sessions", value: todaySessions, icon: '💬', color: '#e8b460' },
             { label: 'Total Minutes',    value: totalMinutes,  icon: '⏱',  color: '#4ade80' },
-            { label: "Today's Earnings", value: `₹${totalMinutes * (profile.pricePerMin || 0)}`, icon: '💰', color: '#818cf8' },
+            { label: "Today's Earnings", value: `₹${todaysEarnings}`, icon: '💰', color: '#818cf8' },
           ].map(s => (
             <div key={s.label} style={{
               background: 'var(--navy-card)',

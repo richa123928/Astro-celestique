@@ -1,12 +1,26 @@
 const crypto = require('crypto');
 const User = require('../models/User');
 const { sendWelcomeEmail, sendEmail } = require('../utils/sendEmail');
+const { getBonusAmount } = require('../utils/bonusAmounts');
+
+// Generates a short, unique, human-shareable referral code
+async function generateReferralCode(name) {
+  const base = (name || 'USER').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5) || 'USER';
+  let code;
+  let exists = true;
+  while (exists) {
+    const suffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+    code = `${base}${suffix}`;
+    exists = await User.exists({ referralCode: code });
+  }
+  return code;
+}
 
 // @desc    Register user
 // @route   POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, currency, referralCode } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -23,8 +37,27 @@ exports.register = async (req, res) => {
       });
     }
 
-    const user = new User({ name, email, password, walletBalance: 50 });
-    user.walletBalance += 50;
+    const userCurrency = ['INR', 'USD', 'EUR', 'GBP'].includes(currency) ? currency : 'INR';
+    const welcomeBonus = getBonusAmount(userCurrency);
+
+    // If a valid referral code was supplied, link this user to their referrer.
+    // The referrer's bonus is NOT credited here — only later, when this user
+    // completes their first wallet top-up (see paymentController.verifyPayment).
+    let referredBy = null;
+    if (referralCode) {
+      const referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
+      if (referrer) referredBy = referrer._id;
+    }
+
+    const user = new User({
+      name,
+      email,
+      password,
+      currency:      userCurrency,
+      walletBalance: welcomeBonus,
+      referralCode:  await generateReferralCode(name),
+      referredBy
+    });
     await user.save();
 
     const token = user.getSignedJwtToken();
@@ -40,7 +73,8 @@ exports.register = async (req, res) => {
         email: user.email,
         role: user.role,
         walletBalance: user.walletBalance,
-        currency: user.currency
+        currency: user.currency,
+        referralCode: user.referralCode
       }
     });
   } catch (err) {

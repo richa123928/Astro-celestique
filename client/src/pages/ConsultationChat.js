@@ -64,6 +64,7 @@ export default function ConsultationChat() {
       billingRef.current = setInterval(async () => {
         try {
           const { data } = await axios.post('/api/consultation/deduct', {
+            sessionId,
             amount: astrologer.rate,
             astrologerName: astrologer.name
           });

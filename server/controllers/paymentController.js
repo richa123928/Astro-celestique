@@ -3,6 +3,7 @@ const crypto   = require('crypto');
 const User     = require('../models/User');
 const Puja     = require('../models/Puja');
 const Order    = require('../models/Order');
+const { getBonusAmount } = require('../utils/bonusAmounts');
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
@@ -70,11 +71,30 @@ exports.verifyPayment = async (req, res) => {
       // Add to wallet
       const user = await User.findById(req.user._id);
       user.walletBalance += amount;
+
+      // Referral payout: only fires on THIS user's first-ever wallet top-up,
+      // only if they were referred, and only once per referral (guarded by
+      // referralBonusCredited on the referred user's own doc).
+      let referralMessage = '';
+      const isFirstTransaction = !user.hasCompletedFirstTransaction;
+      user.hasCompletedFirstTransaction = true;
+
+      if (isFirstTransaction && user.referredBy && !user.referralBonusCredited) {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          const bonus = getBonusAmount(referrer.currency);
+          referrer.walletBalance += bonus;
+          await referrer.save();
+          user.referralBonusCredited = true;
+          referralMessage = ` Your referrer just earned their referral bonus thanks to you!`;
+        }
+      }
+
       await user.save();
 
       return res.status(200).json({
         success: true,
-        message: `₹${amount} added to wallet successfully!`,
+        message: `₹${amount} added to wallet successfully!${referralMessage}`,
         walletBalance: user.walletBalance
       });
     }

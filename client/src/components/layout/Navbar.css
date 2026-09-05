@@ -222,11 +222,22 @@
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .navbar__links { display: none; }
+  .navbar__inner              { gap: 12px; }
+  .navbar__links              { display: none; }
+  .navbar__signin,
+  .navbar__cta,
+  .navbar__wallet,
+  .navbar__logout,
+  .navbar__astrologer-link    { display: none; }
+  .navbar__burger             { display: flex; }
 }
 
-@media (max-width: 768px) {
-  .navbar__burger  { display: flex; }
-  .navbar__signin  { display: none; }
-  .navbar__cta     { display: none; }
+@media (max-width: 480px) {
+  .navbar__logo    { font-size: 19px; gap: 6px; }
+  .navbar__actions { gap: 6px; }
+  .currency-switcher { padding: 6px 8px; font-size: 12px; }
+}
+
+@media (max-width: 420px) {
+  .tz-clock { display: none; }
 }

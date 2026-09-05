@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Puja = require('../models/Puja');
 const Astrologer = require('../models/Astrologer');
+const WalletAdjustment = require('../models/WalletAdjustment');
 
 // @desc    Get all bookings
 // @route   GET /api/admin/bookings
@@ -53,6 +54,70 @@ exports.getAllUsers = async (req, res) => {
       count: users.length,
       users
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Manually credit or debit a user's wallet (for resolving payment
+//          issues, refunds, goodwill credits etc.) — always leaves an
+//          audit trail so it's never a silent, unaccountable change.
+// @route   PUT /api/admin/users/:id/wallet
+exports.adjustWallet = async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+    const parsedAmount = Number(amount);
+
+    if (!parsedAmount || isNaN(parsedAmount)) {
+      return res.status(400).json({ success: false, message: 'Please provide a non-zero amount' });
+    }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'Please provide a reason for this adjustment' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.walletBalance += parsedAmount;
+    if (user.walletBalance < 0) {
+      return res.status(400).json({
+        success: false,
+        message: `This would make the wallet negative (current: ₹${user.walletBalance - parsedAmount})`
+      });
+    }
+    await user.save();
+
+    await WalletAdjustment.create({
+      user:         user._id,
+      admin:        req.user._id,
+      amount:       parsedAmount,
+      reason:       reason.trim(),
+      balanceAfter: user.walletBalance
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `${parsedAmount > 0 ? 'Added' : 'Deducted'} ₹${Math.abs(parsedAmount)} ${parsedAmount > 0 ? 'to' : 'from'} ${user.name}'s wallet`,
+      walletBalance: user.walletBalance
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @desc    Full audit log of manual wallet adjustments
+// @route   GET /api/admin/wallet-adjustments
+exports.getWalletAdjustments = async (req, res) => {
+  try {
+    const adjustments = await WalletAdjustment.find()
+      .populate('user',  'name email')
+      .populate('admin', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(200);
+
+    res.status(200).json({ success: true, adjustments });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

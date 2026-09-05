@@ -774,6 +774,7 @@ useEffect(() => {
         }
         @media (max-width: 600px) {
           .tools-grid, .puja-grid, .astro-grid, .remedies-grid { grid-template-columns: 1fr; }
+          .hero { padding-bottom: 90px; }
         }
       `}</style>
     </main>

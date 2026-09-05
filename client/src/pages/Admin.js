@@ -41,6 +41,10 @@ export default function Admin() {
   const [activeTab,  setActiveTab]  = useState('bookings');
   const [bookings,   setBookings]   = useState([]);
   const [users,      setUsers]      = useState([]);
+  const [walletModalUser, setWalletModalUser] = useState(null); // the user being adjusted, or null
+  const [walletAmount,    setWalletAmount]    = useState('');
+  const [walletReason,    setWalletReason]    = useState('');
+  const [walletSaving,    setWalletSaving]    = useState(false);
   const [astrologers, setAstrologers] = useState([]);
   const [loading,    setLoading]    = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -190,6 +194,34 @@ export default function Admin() {
       fetchData();
     } catch (err) {
       toast.error('Failed to update astrologer');
+    }
+  };
+
+  const handleWalletAdjust = async (e) => {
+    e.preventDefault();
+    const amount = Number(walletAmount);
+    if (!amount) {
+      toast.error('Enter a non-zero amount');
+      return;
+    }
+    if (!walletReason.trim()) {
+      toast.error('Please add a short reason (for the audit log)');
+      return;
+    }
+    setWalletSaving(true);
+    try {
+      const { data } = await axios.put(`/api/admin/users/${walletModalUser._id}/wallet`, {
+        amount, reason: walletReason
+      });
+      toast.success(data.message);
+      setWalletModalUser(null);
+      setWalletAmount('');
+      setWalletReason('');
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to adjust wallet');
+    } finally {
+      setWalletSaving(false);
     }
   };
 
@@ -437,6 +469,16 @@ export default function Admin() {
                 <div style={{ fontSize: 14, color: 'var(--gold-light)', fontWeight: 600 }}>
                   💰 ₹{u.walletBalance}
                 </div>
+                <button
+                  onClick={() => setWalletModalUser(u)}
+                  style={{
+                    fontSize: 12, padding: '6px 12px', borderRadius: 8,
+                    background: 'rgba(201,150,60,0.12)', color: 'var(--gold-light)',
+                    border: '1px solid rgba(201,150,60,0.3)', cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}>
+                  + Adjust
+                </button>
                 <div style={{
                   padding: '4px 12px', borderRadius: 100,
                   background: u.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
@@ -726,6 +768,79 @@ export default function Admin() {
                 style={{ width: '100%', justifyContent: 'center', padding: 14, marginTop: 8 }}>
                 {creatingAstrologer ? 'Creating...' : 'Create Astrologer Account'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Adjustment Modal */}
+      {walletModalUser && (
+        <div
+          onClick={() => !walletSaving && setWalletModalUser(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 24
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--navy-card)', border: '1px solid var(--border-light)',
+              borderRadius: 20, maxWidth: 420, width: '100%', padding: 32
+            }}>
+            <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 4 }}>
+              Adjust Wallet
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+              {walletModalUser.name} · Current balance: ₹{walletModalUser.walletBalance}
+            </p>
+
+            <form onSubmit={handleWalletAdjust}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>
+                  AMOUNT (use a negative number to deduct, e.g. -100)
+                </label>
+                <input
+                  type="number"
+                  value={walletAmount}
+                  onChange={e => setWalletAmount(e.target.value)}
+                  placeholder="e.g. 200 or -50"
+                  style={inputStyle}
+                  autoFocus
+                />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>
+                  REASON (required — kept in the audit log)
+                </label>
+                <input
+                  type="text"
+                  value={walletReason}
+                  onChange={e => setWalletReason(e.target.value)}
+                  placeholder="e.g. Razorpay payment succeeded but wallet wasn't credited"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setWalletModalUser(null)}
+                  style={{
+                    flex: 1, padding: 12, borderRadius: 10,
+                    background: 'transparent', border: '1px solid var(--border-light)',
+                    color: 'var(--text-muted)', cursor: 'pointer'
+                  }}>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={walletSaving}
+                  style={{ flex: 1, justifyContent: 'center', padding: 12 }}>
+                  {walletSaving ? 'Saving...' : 'Confirm'}
+                </button>
+              </div>
             </form>
           </div>
         </div>

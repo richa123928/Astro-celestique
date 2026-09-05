@@ -37,8 +37,8 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await axios.post('/api/auth/register', { name, email, password });
+  const register = async (name, email, password, currency, referralCode) => {
+    const { data } = await axios.post('/api/auth/register', { name, email, password, currency, referralCode });
     localStorage.setItem('astro_token', data.token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
     setToken(data.token);

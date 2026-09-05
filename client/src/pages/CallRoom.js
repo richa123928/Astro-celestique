@@ -40,6 +40,7 @@ export default function CallRoom() {
   billingRef.current = setInterval(async () => {
     try {
       const { data } = await axios.post('/api/consultation/deduct', {
+        sessionId: startedCallId,
         amount: astrologer.rate,
         astrologerName: astrologer.name
       });

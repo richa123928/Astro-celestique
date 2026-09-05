@@ -1,11 +1,13 @@
-const Groq = require('groq-sdk');
+const Groq       = require('groq-sdk');
 const { translateMessage, detectLanguage } = require('../utils/translate');
-const User = require('../models/User');
+const User       = require('../models/User');
+const Astrologer = require('../models/Astrologer');
+const Earning    = require('../models/Earning');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Store active sessions in memory
-const activeSessions = {};
+const activeSessions = require('../utils/activeSessions');
 
 // @desc    Start consultation session
 // @route   POST /api/consultation/start
@@ -25,6 +27,9 @@ exports.startSession = async (req, res) => {
       messages: [],
       isActive: true
     };
+
+    // Count this as one session for the astrologer (lifetime total)
+    Astrologer.findByIdAndUpdate(astrologerId, { $inc: { totalSessions: 1 } }).catch(() => {});
 
     res.status(200).json({
       success: true,
@@ -115,11 +120,11 @@ exports.endSession = async (req, res) => {
   }
 };
 
-// @desc    Deduct wallet per minute
+// @desc    Deduct wallet per minute AND credit the astrologer's earnings
 // @route   POST /api/consultation/deduct
 exports.deductWallet = async (req, res) => {
   try {
-    const { amount, astrologerName } = req.body;
+    const { sessionId, amount, astrologerName } = req.body;
     const user = await User.findById(req.user._id);
 
     if (user.walletBalance < amount) {
@@ -130,8 +135,31 @@ exports.deductWallet = async (req, res) => {
       });
     }
 
+    const session = activeSessions[sessionId];
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found — cannot credit astrologer'
+      });
+    }
+
+    // 1. Debit the user
     user.walletBalance -= amount;
     await user.save();
+
+    // 2. Credit the astrologer — create an earning record + bump running totals
+    await Earning.create({
+      astrologer: session.astrologerId,
+      user:       req.user._id,
+      sessionId,
+      type:       session.mode === 'call' ? 'call' : 'chat',
+      amount,
+      minutesBilled: 1
+    });
+
+    await Astrologer.findByIdAndUpdate(session.astrologerId, {
+      $inc: { totalEarnings: amount }
+    });
 
     res.status(200).json({
       success:       true,

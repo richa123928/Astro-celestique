@@ -70,6 +70,7 @@ Guidelines:
       ],
       temperature: 0.85,
       max_tokens: 512,
+      reasoning_format: 'hidden',
     });
 
     const aiResponse = completion.choices[0].message.content;
@@ -181,7 +182,8 @@ Guidelines:
         ...chatHistories[sessionId]
       ],
       temperature: 0.7,
-      max_tokens: 256,
+      max_tokens: 400,
+      reasoning_format: 'hidden',
     });
 
     const aiResponse = completion.choices[0].message.content;

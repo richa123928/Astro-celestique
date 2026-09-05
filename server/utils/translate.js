@@ -64,6 +64,7 @@ Rules:
     ],
     temperature: strict ? 0.1 : 0.3,
     max_tokens: 500,
+    reasoning_format: 'hidden',
   });
 
   return completion.choices[0].message.content.trim();

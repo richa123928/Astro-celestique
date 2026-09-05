@@ -9,6 +9,7 @@ require('dotenv').config();
 
 const errorHandler = require('./middleware/error');
 const astrologerStatusStore = require('./utils/astrologerStatusStore');
+const ChatMessage = require('./models/ChatMessage');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -62,7 +63,7 @@ app.get('/api/health', (req, res) => {
 // Track online astrologers: { astrologerId: socketId }
 const onlineAstrologers = {};
 // Track active sessions: { sessionId: { userSocketId, astrologerSocketId, startTime, astrologerId, userId } }
-const activeSessions = {};
+const activeSessions = require('./utils/activeSessions');
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
@@ -110,11 +111,13 @@ io.on('connection', (socket) => {
   });
 
   // Astrologer accepts chat
-  socket.on('accept_chat', ({ sessionId, userSocketId, astrologerId }) => {
+  socket.on('accept_chat', ({ sessionId, userSocketId, astrologerId, userId }) => {
     activeSessions[sessionId] = {
       userSocketId,
       astrologerSocketId: socket.id,
       astrologerId,
+      userId,
+      mode: 'chat',
       startTime: new Date(),
       isActive:  true
     };
@@ -158,7 +161,17 @@ io.on('connection', (socket) => {
   });
 
   // Astrologer accepts the call
-  socket.on('accept_call', ({ callId, userSocketId, astrologerId }) => {
+  socket.on('accept_call', ({ callId, userSocketId, astrologerId, userId }) => {
+    activeSessions[callId] = {
+      userSocketId,
+      astrologerSocketId: socket.id,
+      astrologerId,
+      userId,
+      mode: 'call',
+      startTime: new Date(),
+      isActive:  true
+    };
+
     astrologerStatusStore.setBusy(astrologerId.toString());
     io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
 
@@ -176,6 +189,9 @@ io.on('connection', (socket) => {
 
   // Either party ends the call
   socket.on('end_call', ({ callId, astrologerId }) => {
+    if (activeSessions[callId]) {
+      activeSessions[callId].isActive = false;
+    }
     if (astrologerId) {
       astrologerStatusStore.setAvailable(astrologerId.toString());
       io.emit('astrologer_status_update', astrologerStatusStore.getStatusSnapshot());
@@ -196,6 +212,18 @@ io.on('connection', (socket) => {
       console.log('🔍 DEBUG translation result:', { original: message, targetLanguage, translatedMessage });
 
       const timestamp = new Date();
+
+      // Persist for 1-2 day retention (auto-deletes via TTL index — see ChatMessage model)
+      const session = activeSessions[sessionId];
+      ChatMessage.create({
+        sessionId,
+        userId:       session?.userId,
+        astrologerId: session?.astrologerId,
+        senderType,
+        senderName,
+        message,
+        translatedMessage
+      }).catch(err => console.error('Failed to persist chat message:', err.message));
 
       // Sender sees their own original message, with the translation shown
       // as a small reference underneath (so they can confirm it read correctly)
