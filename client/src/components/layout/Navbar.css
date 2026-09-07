@@ -228,6 +228,7 @@
   .navbar__cta,
   .navbar__wallet,
   .navbar__logout,
+  .navbar__my-account,
   .navbar__astrologer-link    { display: none; }
   .navbar__burger             { display: flex; }
 }

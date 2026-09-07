@@ -4,6 +4,7 @@ const User     = require('../models/User');
 const Puja     = require('../models/Puja');
 const Order    = require('../models/Order');
 const { getBonusAmount } = require('../utils/bonusAmounts');
+const WalletTransaction = require('../models/WalletTransaction');
 
 const razorpay = new Razorpay({
   key_id:     process.env.RAZORPAY_KEY_ID,
@@ -87,10 +88,26 @@ exports.verifyPayment = async (req, res) => {
           await referrer.save();
           user.referralBonusCredited = true;
           referralMessage = ` Your referrer just earned their referral bonus thanks to you!`;
+
+          await WalletTransaction.create({
+            user: referrer._id,
+            type: 'referral_bonus',
+            amount: bonus,
+            description: `Referral bonus — ${user.name} completed their first top-up`,
+            balanceAfter: referrer.walletBalance
+          });
         }
       }
 
       await user.save();
+
+      await WalletTransaction.create({
+        user: user._id,
+        type: 'topup',
+        amount,
+        description: 'Wallet top-up',
+        balanceAfter: user.walletBalance
+      });
 
       return res.status(200).json({
         success: true,

@@ -16,7 +16,7 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 export default function AIChat() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateWalletBalance } = useAuth();
   const { initiatePayment, loading: paymentLoading } = usePayment();
   const { convert, currency }     = useCurrency();
   const navigate                  = useNavigate();
@@ -64,6 +64,7 @@ export default function AIChat() {
 
       // Update wallet balance live
       setWalletBalance(data.walletBalance);
+      updateWalletBalance(data.walletBalance);
 
       toast.success(`${convert(data.charged)} deducted · Balance: ${convert(data.walletBalance)}`, {
         duration: 2000,
@@ -94,6 +95,7 @@ export default function AIChat() {
         description: `Add ₹${fundAmount} to Astro Celestique Wallet`,
         onSuccess:   (data) => {
           setWalletBalance(data.walletBalance);
+          updateWalletBalance(data.walletBalance);
           setShowFunds(false);
         }
       });

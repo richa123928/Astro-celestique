@@ -24,6 +24,16 @@ const STATUS_COLORS = {
   cancelled: { bg: 'rgba(248,113,113,0.15)',color: '#f87171' },
 };
 
+const TRANSACTION_LABELS = {
+  welcome_bonus:       { label: 'Welcome Bonus',        icon: '🎉' },
+  referral_bonus:      { label: 'Referral Bonus',       icon: '🎁' },
+  topup:               { label: 'Wallet Top-up',        icon: '💳' },
+  ai_chat_debit:       { label: 'AI Chat',               icon: '🤖' },
+  consultation_debit:  { label: 'Chat Consultation',    icon: '💬' },
+  call_debit:          { label: 'Call Consultation',    icon: '📞' },
+  admin_adjustment:    { label: 'Manual Adjustment',    icon: '⚙️' },
+};
+
 function StatusBadge({ status }) {
   const s = STATUS_COLORS[status] || STATUS_COLORS.pending;
   return (
@@ -41,9 +51,10 @@ export default function MyAccount() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { convert } = useCurrency();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('orders'); // 'orders' | 'bookings'
+  const [tab, setTab] = useState('orders'); // 'orders' | 'bookings' | 'wallet'
   const [orders, setOrders]     = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [walletHistory, setWalletHistory] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
 
@@ -52,18 +63,36 @@ export default function MyAccount() {
     if (!isAuthenticated) { navigate('/auth'); return; }
 
     const fetchAll = async () => {
-      try {
-        const [ordersRes, bookingsRes] = await Promise.all([
-          axios.get('/api/remedies/my-orders'),
-          axios.get('/api/puja/my-bookings')
-        ]);
-        setOrders(ordersRes.data.orders || []);
-        setBookings(bookingsRes.data.pujas || bookingsRes.data.bookings || []);
-      } catch (err) {
-        setError(err.response?.data?.message || 'Could not load your account data.');
-      } finally {
-        setLoading(false);
+      const [ordersRes, bookingsRes, walletRes] = await Promise.allSettled([
+        axios.get('/api/remedies/my-orders'),
+        axios.get('/api/puja/my-bookings'),
+        axios.get('/api/auth/wallet-history')
+      ]);
+
+      if (ordersRes.status === 'fulfilled') {
+        setOrders(ordersRes.value.data.orders || []);
+      } else {
+        console.error('Failed to load orders:', ordersRes.reason?.response?.data?.message || ordersRes.reason?.message);
       }
+
+      if (bookingsRes.status === 'fulfilled') {
+        setBookings(bookingsRes.value.data.pujas || bookingsRes.value.data.bookings || []);
+      } else {
+        console.error('Failed to load bookings:', bookingsRes.reason?.response?.data?.message || bookingsRes.reason?.message);
+      }
+
+      if (walletRes.status === 'fulfilled') {
+        setWalletHistory(walletRes.value.data.history || []);
+      } else {
+        console.error('Failed to load wallet history:', walletRes.reason?.response?.data?.message || walletRes.reason?.message);
+      }
+
+      const failedCount = [ordersRes, bookingsRes, walletRes].filter(r => r.status === 'rejected').length;
+      if (failedCount > 0) {
+        setError(`Some account data couldn't load (${failedCount} of 3 sections). Try refreshing the page.`);
+      }
+
+      setLoading(false);
     };
     fetchAll();
   }, [authLoading, isAuthenticated]);
@@ -87,7 +116,7 @@ export default function MyAccount() {
         </h1>
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 28, borderBottom: '1px solid var(--border-light)' }}>
-          {['orders', 'bookings'].map(t => (
+          {['orders', 'bookings', 'wallet'].map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -97,7 +126,9 @@ export default function MyAccount() {
                 color: tab === t ? 'var(--gold-light)' : 'var(--text-muted)',
                 fontSize: 15, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize'
               }}>
-              {t === 'orders' ? `Orders (${orders.length})` : `Puja Bookings (${bookings.length})`}
+              {t === 'orders'   ? `Orders (${orders.length})`
+                : t === 'bookings' ? `Puja Bookings (${bookings.length})`
+                : `Wallet History (${walletHistory.length})`}
             </button>
           ))}
         </div>
@@ -172,6 +203,54 @@ export default function MyAccount() {
                   )}
                 </div>
               ))}
+            </div>
+          )
+        )}
+
+        {tab === 'wallet' && (
+          walletHistory.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)' }}>No wallet activity yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {walletHistory.map(entry => {
+                const meta = TRANSACTION_LABELS[entry.type] || { label: entry.type, icon: '•' };
+                const isCredit = entry.amount >= 0;
+                return (
+                  <div key={entry._id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: 'var(--navy-card)', border: '1px solid var(--border-light)',
+                    borderRadius: 14, padding: '14px 18px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {meta.label}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                          {entry.description}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                          {new Date(entry.createdAt).toLocaleString('en-IN', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{
+                        fontSize: 15, fontWeight: 700,
+                        color: isCredit ? '#4ade80' : '#f87171'
+                      }}>
+                        {isCredit ? '+' : ''}{convert(entry.amount)}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                        Balance: {convert(entry.balanceAfter)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )
         )}

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { sendWelcomeEmail, sendEmail } = require('../utils/sendEmail');
 const { getBonusAmount } = require('../utils/bonusAmounts');
+const WalletTransaction = require('../models/WalletTransaction');
 
 // Generates a short, unique, human-shareable referral code
 async function generateReferralCode(name) {
@@ -59,6 +60,14 @@ exports.register = async (req, res) => {
       referredBy
     });
     await user.save();
+
+    await WalletTransaction.create({
+      user: user._id,
+      type: 'welcome_bonus',
+      amount: welcomeBonus,
+      description: 'Welcome bonus',
+      balanceAfter: user.walletBalance
+    });
 
     const token = user.getSignedJwtToken();
     // Send welcome email
@@ -274,5 +283,37 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     console.error('Reset password error:', err.message);
     res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
+  }
+};
+
+// @desc    Get the logged-in user's full wallet history — merges regular
+//          transactions (top-ups, bonuses, chat/call debits) with any
+//          manual admin adjustments, sorted newest first.
+// @route   GET /api/auth/wallet-history
+exports.getWalletHistory = async (req, res) => {
+  try {
+    const WalletTransaction = require('../models/WalletTransaction');
+    const WalletAdjustment  = require('../models/WalletAdjustment');
+
+    const [transactions, adjustments] = await Promise.all([
+      WalletTransaction.find({ user: req.user.id }).sort({ createdAt: -1 }).limit(100),
+      WalletAdjustment.find({ user: req.user.id }).sort({ createdAt: -1 }).limit(100)
+    ]);
+
+    const normalizedAdjustments = adjustments.map(a => ({
+      _id:          a._id,
+      type:         'admin_adjustment',
+      amount:       a.amount,
+      description:  a.reason,
+      balanceAfter: a.balanceAfter,
+      createdAt:    a.createdAt
+    }));
+
+    const combined = [...transactions, ...normalizedAdjustments]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json({ success: true, history: combined });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };

@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 
 export default function CallRoom() {
-  const { user } = useAuth();
+  const { user, updateWalletBalance } = useAuth();
   const location = useLocation();
   const navigate  = useNavigate();
   const astrologer = location.state?.astrologer;
@@ -45,6 +45,7 @@ export default function CallRoom() {
         astrologerName: astrologer.name
       });
       setWalletBalance(data.walletBalance);
+      updateWalletBalance(data.walletBalance);
       if (data.walletBalance < astrologer.rate) {
         toast.error('Low wallet balance! Please add funds.');
       }

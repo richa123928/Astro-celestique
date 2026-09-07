@@ -17,7 +17,7 @@ const LANGUAGES = [
 ];
 
 export default function ConsultationChat() {
-  const { user }        = useAuth();
+  const { user, updateWalletBalance }        = useAuth();
   const { convert }     = useCurrency();
   const navigate        = useNavigate();
   const location        = useLocation();
@@ -69,6 +69,7 @@ export default function ConsultationChat() {
             astrologerName: astrologer.name
           });
           setWalletBalance(data.walletBalance);
+          updateWalletBalance(data.walletBalance);
           if (data.walletBalance < astrologer.rate) {
             toast.error('Low wallet balance! Please add funds.');
           }
@@ -148,6 +149,7 @@ const addFunds = async () => {
     description: `Add ₹${fundAmount} to wallet`,
     onSuccess: (data) => {
       setWalletBalance(data.walletBalance);
+      updateWalletBalance(data.walletBalance);
       setShowFunds(false);
       toast.success('Funds added!');
     }

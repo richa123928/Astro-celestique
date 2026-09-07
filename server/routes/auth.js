@@ -7,7 +7,8 @@ const {
   getMe,
   updateCurrency,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  getWalletHistory
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
@@ -43,6 +44,7 @@ const forgotPasswordLimiter = rateLimit({
 router.post('/register', registerLimiter, register);
 router.post('/login', loginLimiter, login);
 router.get('/me', protect, getMe);
+router.get('/wallet-history', protect, getWalletHistory);
 router.put('/currency', protect, updateCurrency);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.put('/reset-password/:resettoken', resetPassword);

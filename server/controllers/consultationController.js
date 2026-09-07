@@ -3,6 +3,7 @@ const { translateMessage, detectLanguage } = require('../utils/translate');
 const User       = require('../models/User');
 const Astrologer = require('../models/Astrologer');
 const Earning    = require('../models/Earning');
+const WalletTransaction = require('../models/WalletTransaction');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -146,6 +147,14 @@ exports.deductWallet = async (req, res) => {
     // 1. Debit the user
     user.walletBalance -= amount;
     await user.save();
+
+    WalletTransaction.create({
+      user: req.user._id,
+      type: session.mode === 'call' ? 'call_debit' : 'consultation_debit',
+      amount: -amount,
+      description: `${session.mode === 'call' ? 'Call' : 'Chat'} with ${astrologerName || 'astrologer'}`,
+      balanceAfter: user.walletBalance
+    }).catch(err => console.error('Failed to log wallet transaction:', err.message));
 
     // 2. Credit the astrologer — create an earning record + bump running totals
     await Earning.create({

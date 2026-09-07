@@ -105,7 +105,7 @@ export default function Navbar() {
           {/* Timezone Switcher */}
           <div className="currency-switcher" ref={timezoneRef} onClick={() => setTimezoneOpen(o => !o)}
           style={{ position: 'relative' }}>
-            <span>🌐</span>
+            <span><i className="fa-solid fa-globe"></i></span>
             <span>{timezone}</span>
             <span className="tz-clock" style={{ fontSize: 11, color: 'var(--gold)', marginLeft: 2 }}>{currentTime}</span>
             <span className="currency-arrow">▾</span>
@@ -133,16 +133,17 @@ export default function Navbar() {
           {/* Auth */}
           {isAuthenticated ? (
   <>
-    <span className="navbar__wallet" style={{
+    <Link to="/my-account" className="navbar__wallet" style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
       fontSize: 13, color: 'var(--gold-light)',
       background: 'rgba(201,150,60,0.1)',
       border: '1px solid rgba(201,150,60,0.25)',
       padding: '5px 12px', borderRadius: 100,
-      whiteSpace: 'nowrap', flexShrink: 0
+      whiteSpace: 'nowrap', flexShrink: 0, textDecoration: 'none',
+      cursor: 'pointer'
     }}>
-      💰 {convert(user?.walletBalance || 0)}
-    </span>
+      <i className="fa-solid fa-wallet"></i> {convert(user?.walletBalance || 0)}
+    </Link>
     <button className="btn-ghost navbar__logout" onClick={() => { logout(); setMenuOpen(false); }}>
       Logout
     </button>
@@ -205,19 +206,19 @@ export default function Navbar() {
               padding: '8px 12px', borderRadius: 100,
               marginBottom: 8, width: 'fit-content'
             }}>
-              💰 {convert(user?.walletBalance || 0)}
+              <i className="fa-solid fa-wallet"></i> {convert(user?.walletBalance || 0)}
             </span>
           )}
           {isAuthenticated && (
             <Link to="/my-account" onClick={() => setMenuOpen(false)}
             style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 8, textDecoration: 'none' }}>
-              📦 My Orders & Bookings
+              <i className="fa-solid fa-box"></i> My Account
             </Link>
           )}
           {isAuthenticated && (
             <Link to="/refer" onClick={() => setMenuOpen(false)}
             style={{ fontSize: 13, color: 'var(--gold-light)', marginBottom: 8, textDecoration: 'none' }}>
-              🎁 Refer & Earn
+              <i className="fa-solid fa-gift"></i> Refer & Earn
             </Link>
           )}
           {isAuthenticated ? (

@@ -1,5 +1,6 @@
 const Groq = require('groq-sdk');
 const User = require('../models/User');
+const WalletTransaction = require('../models/WalletTransaction');
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -28,6 +29,14 @@ exports.sendAIMessage = async (req, res) => {
     // Deduct per message charge (10 INR per message)
     user.walletBalance -= 20;
     await user.save();
+
+    WalletTransaction.create({
+      user: userId,
+      type: 'ai_chat_debit',
+      amount: -20,
+      description: 'AI astrologer chat message',
+      balanceAfter: user.walletBalance
+    }).catch(err => console.error('Failed to log wallet transaction:', err.message));
 
     // Initialize chat history for session
     if (!chatHistories[sessionId]) {
